@@ -8,18 +8,15 @@ from PyQt6.QtWidgets import (
     QFrame,
 )
 from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import QUrl, pyqtSignal, Qt
 from typing import Optional, List
-
+from Entry import Entry
 
 class EntryCard(QWidget):
+    entryClicked = pyqtSignal(object)  # Signal emitted when the card is clicked
     def __init__(
         self,
-        title: str,
-        authors: List[str],
-        date: str,
-        pdf_url: Optional[str] = None,
-        web_url: Optional[str] = None,
+        entry: Entry
     ):
         super().__init__()
 
@@ -32,26 +29,30 @@ class EntryCard(QWidget):
                 border: 1px solid #ddd;
             }
         """)
+        self.entry = entry
         # shadow_frame.setStyleSheet("background-color: white; border-radius: 10px;")
         shadow_layout = QVBoxLayout(shadow_frame)
 
         layout = QVBoxLayout(self)
 
-        title_label = QLabel(title)
+        title_label = QLabel(entry.title)
+        title_label.setWordWrap(True)
         title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
 
-        authors_label = QLabel(f"Authors: {', '.join(authors)}")
-        authors_label.setStyleSheet("font-size: 13px;")
+        authors_label = QLabel(entry.authors)
 
-        date_label = QLabel(f"Published: {date}")
+        authors_label.setStyleSheet("font-size: 13px; font-style: oblique; color: #555;")
+
+        date_label = QLabel(f"Published: {entry.published}")
         date_label.setStyleSheet("font-size: 12px; color: #bbb;")
 
         btn_row = QHBoxLayout()
         pdf_btn = QPushButton("PDF")
         web_btn = QPushButton("Arxiv Page")
 
-        pdf_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(pdf_url)))
-        web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(web_url)))
+        link = entry.link
+        pdf_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(link.replace("abs", "pdf"))))
+        web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(link)))
 
         btn_row.addWidget(pdf_btn)
         btn_row.addWidget(web_btn)
@@ -69,3 +70,18 @@ class EntryCard(QWidget):
         # Apply shadow effect to frame only
         # shadow_effect = QGraphicsDropShadowEffect()
         # shadow_frame.setGraphicsEffect(shadow_effect)
+
+
+    # Mouse hover show pointer cursor
+    def enterEvent(self, event):
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def leaveEvent(self, event):
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def entry(self) -> Entry:
+        return self.entry
+
+    # Handle click event and send signal called entryClicked
+    def mousePressEvent(self, event):
+        self.entryClicked.emit(self.entry)
