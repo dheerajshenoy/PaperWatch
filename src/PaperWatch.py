@@ -12,6 +12,8 @@ from PyQt6.QtWidgets import (
     QHeaderView,
 )
 
+KEYWORDS = ["CNN", "Network", "Deep Learning", "Neural Networks"]
+
 
 class PaperWatchApp(QMainWindow):
     def __init__(self):
@@ -21,7 +23,10 @@ class PaperWatchApp(QMainWindow):
         # Additional UI setup can be done here
 
         self.initUI()
-        papers = self.fetch_papers(method_name="query", parameters="search_query=CNN")
+
+        # Fetch papers based on keywords
+        parameters = "+AND+".join([f"{keyword}" for keyword in KEYWORDS])
+        papers = self.fetch_papers(method_name="query", parameters=parameters)
         self.showPapers(papers)
 
     def initUI(self):
@@ -42,14 +47,28 @@ class PaperWatchApp(QMainWindow):
         self.rightPanel = QWidget()
         self.layout.addWidget(self.leftPanel)
         self.menubar.show()
-        self.table: QTableWidget = QTableWidget(0, 3)  # Placeholder for future table widget
-        self.layout.addWidget(self.table)
-
+        self.tableCols = 3  # Number of columns in the table
+        self.table: QTableWidget = QTableWidget(
+            0, self.tableCols
+        )  # Placeholder for future table widget
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        # self.table.setSortingEnabled(True)
         # Set table headers label
         self.table.setHorizontalHeaderLabels(["Title", "Authors", "Published"])
 
-        # Expand first column section of the table to fill available space
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        # Expand first column section of the table to fill available space, also make it resizable
+
+        self.table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
+        )
+
+        for i in range(1, self.tableCols):
+            self.table.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.ResizeMode.Interactive
+            )
+
+        self.layout.addWidget(self.table)
 
     def showPapers(self, papers):
         """
@@ -100,5 +119,8 @@ class PaperWatchApp(QMainWindow):
         url = f"{url_template.format(method_name=method_name, parameters=parameters)}"
         # Make GET request with Chrome User-Agent
         response = http.request("GET", url, headers={"User-Agent": chrome_ua})
+
+        if response.status != 200:
+            raise Exception(f"Error fetching data: {response.status} status code")
 
         return feedparser.parse(response.data)
