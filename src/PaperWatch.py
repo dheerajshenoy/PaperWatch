@@ -1,30 +1,34 @@
 import feedparser
-import urllib3
-import certifi
 
 from PyQt6.QtNetwork import QNetworkReply, QNetworkRequest
-from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, QUrl
+from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, QUrl, Qt
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
+from EntryCard import EntryCard
 
 from PyQt6.QtWidgets import (
     QMainWindow,
+    QScrollBar,
+    QVBoxLayout,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QWidget,
     QHBoxLayout,
     QHeaderView,
+    QSizePolicy,
 )
 
-SUBJECTS = ["astro-ph.CO"]
-KEYWORDS = ["cosmic"]
+MAX_RESULTS_EACH = 10
+SUBJECTS = ["astro-ph.CO", "cs.CV", "cs.LG", "cs.ML"]
+KEYWORDS = ["CNN", "Machine Learning"]
 
 
 class PaperWatchApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.entries = None  # Placeholder for paper entries
+        self.entries: feedparser.FeedParserDict = None  # Placeholder for paper entries
 
         self.setWindowTitle("PaperWatch")
         self.setGeometry(100, 100, 800, 600)
@@ -61,34 +65,45 @@ class PaperWatchApp(QMainWindow):
         self.main_widget.setLayout(self.layout)
         self.leftPanel = QWidget()
         self.rightPanel = QWidget()
-        self.layout.addWidget(self.leftPanel)
+        # self.layout.addWidget(self.leftPanel)
+        # self.layout.addWidget(self.rightPanel)
         self.menubar.show()
-        self.tableCols = 4  # Number of columns in the table
-        self.table: QTableWidget = QTableWidget(
-            0, self.tableCols
-        )  # Placeholder for future table widget
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setSortingEnabled(True)
-        # Set table headers label
-        self.table.setHorizontalHeaderLabels(
-            ["Title", "Subject", "Authors", "Published"]
-        )
+        # self.tableCols = 4  # Number of columns in the table
+        # self.table: QTableWidget = QTableWidget(
+        #     0, self.tableCols
+        # )  # Placeholder for future table widget
+        # self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        # self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        # self.table.setSortingEnabled(True)
+        # # Set table headers label
+        # self.table.setHorizontalHeaderLabels(
+        #     ["Title", "Subject", "Authors", "Published"]
+        # )
+        #
+        # # Expand first column section of the table to fill available space, also make it resizable
+        #
+        # self.table.horizontalHeader().setSectionResizeMode(
+        #     0, QHeaderView.ResizeMode.Stretch
+        # )
+        #
+        # for i in range(1, self.tableCols):
+        #     self.table.horizontalHeader().setSectionResizeMode(
+        #         i, QHeaderView.ResizeMode.Interactive
+        #     )
+        #
+        # self.layout.addWidget(self.table)
 
-        # Expand first column section of the table to fill available space, also make it resizable
+        self.scroll_area = QScrollArea()
+        # self.scroll_area.setVerticalScrollBarPolicy(
+        #     Qt.ScrollBarPolicy.ScrollBarAlwaysOn
+        # )
+        self.scroll_area.setWidgetResizable(True)
 
-        self.table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
-
-        for i in range(1, self.tableCols):
-            self.table.horizontalHeader().setSectionResizeMode(
-                i, QHeaderView.ResizeMode.Interactive
-            )
-
-        self.layout.addWidget(self.table)
-
-        self.table.itemDoubleClicked.connect(self.on_item_double_clicked)
+        self.scroll_layout = QVBoxLayout()
+        self.scroll_area_widget = QWidget()
+        self.scroll_area_widget.setLayout(self.scroll_layout)
+        self.scroll_area.setWidget(self.scroll_area_widget)
+        self.layout.addWidget(self.scroll_area)
 
     def on_item_double_clicked(self, item: QTableWidgetItem):
         """
@@ -106,18 +121,18 @@ class PaperWatchApp(QMainWindow):
                 # TODO: This is just a hack to open the PDF directly, improve it later
                 QDesktopServices.openUrl(QUrl(entry.link.replace("abs", "pdf")))
 
-    def showPapers(self, papers):
+    def showPapers(self, papers: feedparser.FeedParserDict) -> None:
         """
         Display fetched papers in the UI.
         """
         self.entries = papers.entries
         for entry in papers.entries:
-            title = QTableWidgetItem(entry.title)
-            authors = QTableWidgetItem(
-                ", ".join(author.name for author in entry.authors)
-            )
+            # title = QTableWidgetItem(entry.title)
+            # authors = QTableWidgetItem(
+            #     ", ".join(author.name for author in entry.authors)
+            # )
             # published = QTableWidgetItem(entry.published_parsed)
-            published = QTableWidgetItem(entry.published)
+            # published = QTableWidgetItem(entry.published)
 
             primary_category = (
                 entry.arxiv_primary_category["term"]
@@ -128,45 +143,35 @@ class PaperWatchApp(QMainWindow):
             if primary_category not in SUBJECTS:
                 continue  # Skip this entry
 
-            self.table.insertRow(self.table.rowCount())
+            card = EntryCard(
+                entry.title,
+                [author.name for author in entry.authors],
+                entry.published,
+                entry.link.replace("abs", "pdf"),
+                entry.link,
+            )
 
-            subject = QTableWidgetItem(entry.tags[0]["term"] if entry.tags else "DD")
-            self.table.setItem(self.table.rowCount() - 1, 0, title)
-            self.table.setItem(self.table.rowCount() - 1, 1, subject)
-            self.table.setItem(self.table.rowCount() - 1, 2, authors)
-            self.table.setItem(self.table.rowCount() - 1, 3, published)
+            self.scroll_layout.addWidget(card)
+
+            # subject = QTableWidgetItem(entry.tags[0]["term"] if entry.tags else "DD")
+            # self.table.insertRow(self.table.rowCount())
+            #
+            # self.table.setItem(self.table.rowCount() - 1, 0, title)
+            # self.table.setItem(self.table.rowCount() - 1, 1, subject)
+            # self.table.setItem(self.table.rowCount() - 1, 2, authors)
+            # self.table.setItem(self.table.rowCount() - 1, 3, published)
             # Additional columns can be added for authors, published date, link, etc.
 
     def fetch_papers_async(self, method_name: str, parameters: str):
         """
         Fetch papers asynchronously from arXiv API.
         """
-        # Create a PoolManager (handles connections)
-        # http = urllib3.PoolManager(
-        #     cert_reqs="CERT_REQUIRED",  # enforce SSL certificate verification
-        #     ca_certs=certifi.where(),  # use certifi CA bundle
-        # )
-
+        self.statusbar.showMessage("Loading papers...", 0)
         url_template = "http://export.arxiv.org/api/query?{method_name}={parameters}&start=0&sortBy=submittedDate&sortOrder=descending"
-        # url = 'http://export.arxiv.org/api/query?search_query=all:electron&start=0&max_results=1'
-
-        # Google Chrome User-Agent string (example from latest Chrome)
-        chrome_ua = (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/118.0.5993.90 Safari/537.36"
-        )
 
         url = f"{url_template.format(method_name=method_name, parameters=parameters)}"
 
         request = QNetworkRequest(QUrl(url))
-        # request.setRawHeader(
-        #     b"User-Agent",
-        #     b"Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        #     b"AppleWebKit/537.36 (KHTML, like Gecko)",
-        #     b"Chrome/118.0.5993.90 Safari/537.36",
-        # )
-        # FOLLOW REDIRECTS — REQUIRED
         request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute, True)
         self.manager.get(request)
 
@@ -180,6 +185,8 @@ class PaperWatchApp(QMainWindow):
         feed = feedparser.parse(data)
 
         # Clear table
-        self.table.setRowCount(0)
+        # self.table.setRowCount(0)
 
         self.showPapers(feed)
+        self.statusbar.showMessage("Papers loaded.", 2500)
+        self.scroll_area.setContentsMargins(10, 10, 10, 10)
