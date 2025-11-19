@@ -2,7 +2,7 @@ import feedparser
 
 from PyQt6.QtNetwork import QNetworkReply, QNetworkRequest
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, QUrl, Qt
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QAction, QActionGroup
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from EntryCard import EntryCard
 from EntryInfoWidget import EntryInfoWidget
@@ -23,6 +23,7 @@ from Statusbar import Statusbar
 
 MAX_RESULTS_EACH = 30
 SUBJECTS = ["astro-ph.CO", "cs.CV", "cs.LG", "cs.ML"]
+SUBJECTS = []
 KEYWORDS = ["CNN", "Machine Learning"]
 
 
@@ -36,6 +37,8 @@ class PaperWatchApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.sort_by: self.SortBy = self.SortBy.DATE
+        self.sort_order_ascending: bool = False
         self.entries: feedparser.FeedParserDict = None  # Placeholder for paper entries
 
         self.setWindowTitle("PaperWatch")
@@ -45,20 +48,21 @@ class PaperWatchApp(QMainWindow):
         self.initUI()
 
         # Fetch papers based on keywords, it should be title=keyword+OR+title=keyword
-        parameters = "+AND+".join(f"ti:{keyword}" for keyword in KEYWORDS)
+        self.parameters = "+AND+".join(f"ti:{keyword}" for keyword in KEYWORDS)
 
         self.manager = QNetworkAccessManager()
         self.manager.finished.connect(self.on_page_response)
 
         # If you want to filter by subjects as well, uncomment the following lines
-        # subject_filter = "+OR+".join(f"cat:{subject}" for subject in SUBJECTS)
-        for subject in SUBJECTS:
-            subject_filter = f"cat:{subject}"
-            self.parameters = f"({parameters})+AND+({subject_filter})"
-            self.method_name = "search_query"
-            self.fetch_papers_async(
-                self.method_name, self.parameters, max_results=MAX_RESULTS_EACH
-            )
+        if SUBJECTS:
+            subject_filter = "+AND+".join(f"all:{subject}" for subject in SUBJECTS)
+            self.parameters += f"+AND+({subject_filter})"
+        self.method_name = "search_query"
+        self.fetch_papers_async(
+            self.method_name, self.parameters, max_results=MAX_RESULTS_EACH
+        )
+
+        self.sort_entries(self.SortBy.AUTHOR)
 
     def initUI(self):
         """Initialize the user interface."""
@@ -75,21 +79,34 @@ class PaperWatchApp(QMainWindow):
         )
         self.file_menu.addAction("Exit", self.close)
 
-        self.view_menu.addAction(
-            "Sort by Date",
-            lambda: self.sort_entries(self.SortBy.DATE),
-            )
+        # Add sorting options to view menu with exclusive selection with QActionGroup
 
-        self.view_menu.addAction(
-            "Sort by Title",
-            lambda: self.sort_entries(self.SortBy.TITLE),
-            )
+        sort_group = QActionGroup(self)
+        sort_by_date_action = QAction("Sort by Date", self, checkable=True)
+        sort_by_title_action = QAction("Sort by Title", self, checkable=True)
+        sort_by_author_action = QAction("Sort by Author", self, checkable=True)
 
-        self.view_menu.addAction(
-            "Sort by Author",
-            lambda: self.sort_entries(self.SortBy.AUTHOR),
-            )
+        sort_group.addAction(sort_by_date_action)
+        sort_group.addAction(sort_by_title_action)
+        sort_group.addAction(sort_by_author_action)
 
+        sort_by_date_action.triggered.connect(
+            lambda: self.sort_entries(self.SortBy.DATE)
+        )
+        sort_by_title_action.triggered.connect(
+            lambda: self.sort_entries(self.SortBy.TITLE)
+        )
+        sort_by_author_action.triggered.connect(
+            lambda: self.sort_entries(self.SortBy.AUTHOR)
+        )
+
+        sort_by_author_action.setChecked(True)
+
+        self.view_menu.addAction(sort_by_date_action)
+        self.view_menu.addAction(sort_by_title_action)
+        self.view_menu.addAction(sort_by_author_action)
+
+        # Main layout
         self.layout = QVBoxLayout()
         self.statusbar = Statusbar(self)
         self.main_widget = QWidget()
@@ -122,7 +139,11 @@ class PaperWatchApp(QMainWindow):
         self.stacked_widget.addWidget(self.entry_info_widget)
         self.layout.addWidget(self.statusbar)
 
-    def showPapers(self, papers: Union[feedparser.FeedParserDict, List[Entry]], remove_existing_entries = False) -> None:
+    def showPapers(
+        self,
+        papers: Union[feedparser.FeedParserDict, List[Entry]],
+        remove_existing_entries=False,
+    ) -> None:
         """
         Display fetched papers in the UI.
         """
@@ -142,7 +163,7 @@ class PaperWatchApp(QMainWindow):
         for feed in self.entries:
             entry: Entry = Entry(feed)
 
-            if entry.primary_category not in SUBJECTS:
+            if SUBJECTS != [] and entry.primary_category not in SUBJECTS:
                 continue  # Skip this entry
 
             card = EntryCard(entry)
@@ -186,15 +207,25 @@ class PaperWatchApp(QMainWindow):
         if self.entries is None:
             return
 
+        self.sort_by = sort_by
+
         if sort_by == self.SortBy.DATE:
             sorted_entries = sorted(
-                self.entries, key=lambda e: e.published_parsed, reverse=True
+                self.entries, key=lambda e: e.published_parsed
             )
         elif sort_by == self.SortBy.TITLE:
-            sorted_entries = sorted(self.entries, key=lambda e: e.title.lower())
+            sorted_entries = sorted(
+                self.entries, key=lambda e: e.title.lower(), reverse=True
+            )
         elif sort_by == self.SortBy.AUTHOR:
-            sorted_entries = sorted(self.entries, key=lambda e: e.authors[0]["name"].lower())
+            sorted_entries = sorted(
+                self.entries, key=lambda e: e.authors[0]["name"].lower(), reverse=True
+            )
         else:
             return
+
+        self.statusbar.set_sort_indicator(
+            sort_by.name, "Ascending" if self.sort_order_ascending else "Descending"
+        )
 
         self.showPapers(sorted_entries, True)

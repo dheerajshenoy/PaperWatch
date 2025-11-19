@@ -28,6 +28,9 @@ class Statusbar(QStatusBar):
         self.num_papers_label = QLabel("")
         self.addPermanentWidget(self.num_papers_label)
 
+        self.sort_label = QLabel("")
+        self.addPermanentWidget(self.sort_label)
+
     def set_message(self, message: str, timeout: int = 5000):
         """Set a message in the status bar with an optional timeout."""
         self.showMessage(message, timeout)
@@ -61,3 +64,8 @@ class Statusbar(QStatusBar):
     def set_papers_count(self, count: int):
         """Display the number of papers fetched or being processed."""
         self.num_papers_label.setText(f"Papers fetched: {count}")
+
+    # Add sort indicator with a dedicated label
+    def set_sort_indicator(self, sort_by: str, sort_order: str):
+        """Display the current sorting method and order."""
+        self.sort_label.setText(f"Sorted by: {sort_by} ({sort_order})")

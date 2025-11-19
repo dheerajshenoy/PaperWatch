@@ -1,9 +1,17 @@
 # Entry info widget which shows detailed information like title, abstract about a selected entry.
 
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QTextEdit, QPushButton, QHBoxLayout)
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QTextEdit,
+    QPushButton,
+    QHBoxLayout,
+)
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QFont
 from Entry import Entry
+
 
 class EntryInfoWidget(QWidget):
     backClicked = pyqtSignal()
@@ -16,16 +24,24 @@ class EntryInfoWidget(QWidget):
 
         self.title_label = QLabel("Title")
         self.title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        self.title_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         self.layout.addWidget(self.title_label)
 
         self.authors_label = QLabel("Authors")
         self.authors_label.setFont(QFont("Arial", 12, QFont.Weight.Normal))
+        self.authors_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         self.layout.addWidget(self.authors_label)
 
         self.abstract_text = QLabel()
         self.abstract_text.setWordWrap(True)
-        self.abstract_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        # self.abstract_text.setReadOnly(True)
+        self.abstract_text.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+        self.abstract_text.setFont(QFont("Arial", 11, QFont.Weight.Normal))
         self.layout.addWidget(self.abstract_text)
         self.layout.addStretch()
 
@@ -44,9 +60,7 @@ class EntryInfoWidget(QWidget):
         self.website_button = QPushButton("Open Website")
         self.btn_layout.addWidget(self.website_button)
 
-
         self.layout.addLayout(self.btn_layout)
-
 
     def on_back_clicked(self):
         self.backClicked.emit()
@@ -55,4 +69,3 @@ class EntryInfoWidget(QWidget):
         self.title_label.setText(entry.title)
         self.authors_label.setText(entry.authors)
         self.abstract_text.setText(entry.abstract)
-

@@ -13,6 +13,8 @@ class Entry:
         self._published = feed.get("published", "No Published Date")
         self._abstract = feed.get("summary", "No Abstract")
         self._link = feed.get("link", "No Link")
+
+        self._categories = [tag["term"] for tag in feed.get("tags", [])]
         self._primary_category = (
             feed.get("arxiv_primary_category", {}).get("term", "No Category")
             if "arxiv_primary_category" in feed
@@ -23,6 +25,10 @@ class Entry:
         return f"Entry(title={self.title}, authors={self.authors}, published={self.published}, link={self.link}, primary_category={self.primary_category})"
 
 # Getter only for all members as properties
+
+    @property
+    def categories(self) -> str:
+        return self._categories
 
     @property
     def title(self) -> str:

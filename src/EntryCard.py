@@ -41,6 +41,22 @@ class EntryCard(QWidget):
 
         authors_label = QLabel(entry.authors)
 
+        tag_layout = QHBoxLayout()
+
+
+        for category in entry.categories:
+            tag_label = QLabel(category)
+            tag_label.setStyleSheet("""
+                background-color: #eee;
+                border-radius: 5px;
+                padding: 2px 5px;
+                font-size: 12px;
+                color: #333;
+            """)
+            tag_layout.addWidget(tag_label)
+
+        tag_layout.addStretch()
+
         authors_label.setStyleSheet("font-size: 13px; font-style: oblique; color: #555;")
 
         date_label = QLabel(f"Published: {entry.published}")
@@ -59,6 +75,7 @@ class EntryCard(QWidget):
         btn_row.addStretch()
 
         shadow_layout.addWidget(title_label)
+        shadow_layout.addLayout(tag_layout)
         shadow_layout.addWidget(authors_label)
         shadow_layout.addWidget(date_label)
         shadow_layout.addLayout(btn_row)
