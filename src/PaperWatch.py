@@ -14,11 +14,13 @@ from SidePanel import SidePanel
 
 from PyQt6.QtWidgets import (
     QMainWindow,
+    QSizePolicy,
     QVBoxLayout,
     QScrollArea,
     QWidget,
     QFrame,
     QStackedWidget,
+    QHBoxLayout,
 )
 
 from Statusbar import Statusbar
@@ -190,9 +192,7 @@ class PaperWatchApp(QMainWindow):
         self.stacked_widget = QStackedWidget()
         self.entry_info_widget = EntryInfoWidget()
 
-        self.entry_info_widget.backClicked.connect(
-            lambda: self.stacked_widget.setCurrentWidget(self.scroll_area)
-        )
+        self.entry_info_widget.backClicked.connect(self.back_to_main_view)
 
         self.side_panel.setSizePolicy(
             QSizePolicy.Policy.Maximum,
