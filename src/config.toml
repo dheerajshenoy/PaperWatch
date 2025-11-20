@@ -1,9 +1,13 @@
 [arxiv]
-max_results = 25
+max_results = 100
 subjects = ["cs.AI", "cs.LG"]
 keywords = ["machine learning", "artificial intelligence"]
 sort_by = "submittedDate"
 sort_order = "descending"
+
+[ui.side_panel]
+visible = true
+width = 300
 
 [ui.card]
 show_authors = true
