@@ -77,7 +77,6 @@ class PaperWatchApp(QMainWindow):
                 max_results=self.config.arxiv.max_results,
             )
 
-        self.sort_entries_by(self.SortBy.AUTHOR)
 
     def initUI(self):
         """Initialize the user interface."""
