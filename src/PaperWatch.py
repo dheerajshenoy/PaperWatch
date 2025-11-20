@@ -10,6 +10,7 @@ from Entry import Entry
 import enum
 from typing import List, overload, Union
 from Config import AppConfig
+from SidePanel import SidePanel
 
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -87,6 +88,13 @@ class PaperWatchApp(QMainWindow):
         self.view_menu = self.menubar.addMenu("View")
         self.help_menu = self.menubar.addMenu("Help")
 
+        self.side_panel = SidePanel(self)
+        self.side_panel.setVisible(self.config.ui.side_panel.visible)
+        self.side_panel.setContentsMargins(0, 0, 0, 0)
+
+        if self.config.ui.side_panel.width > 0:
+            self.side_panel.setMinimumWidth(self.config.ui.side_panel.width)
+
         self.file_menu.addAction(
             "Refresh",
             lambda: self.fetch_papers_async(self.method_name, self.parameters),
@@ -131,6 +139,11 @@ class PaperWatchApp(QMainWindow):
         self.sort_by_menu.addAction(sort_by_author_action)
 
         self.sort_order_menu = self.view_menu.addMenu("Sort Order")
+
+        self.view_menu.addAction(
+            "Toggle Side Panel",
+            lambda: self.side_panel.setVisible(not self.side_panel.isVisible()),
+        )
 
         sort_order_group = QActionGroup(self)
         ascending_action = QAction("Ascending", self, checkable=True)
@@ -181,10 +194,18 @@ class PaperWatchApp(QMainWindow):
             lambda: self.stacked_widget.setCurrentWidget(self.scroll_area)
         )
 
-        self.layout.addWidget(self.stacked_widget)
+        self.side_panel.setSizePolicy(
+            QSizePolicy.Policy.Maximum,
+            self.side_panel.sizePolicy().verticalPolicy(),
+        )
+        self.horiz_layout = QHBoxLayout()
+        self.layout.addLayout(self.horiz_layout)
+        self.horiz_layout.addWidget(self.side_panel)
+        self.horiz_layout.addWidget(self.stacked_widget)
         self.stacked_widget.addWidget(self.scroll_area)
         self.stacked_widget.addWidget(self.entry_info_widget)
         self.layout.addWidget(self.statusbar)
+        self.layout.setContentsMargins(0, 0, 0, 0)
 
     def showPapers(
         self,
@@ -248,6 +269,7 @@ class PaperWatchApp(QMainWindow):
         self.statusbar.set_message("Papers loaded successfully.", 3000)
 
     def on_entry_clicked(self, entry: Entry):
+        self.side_panel.setVisible(False)
         self.stacked_widget.setCurrentWidget(self.entry_info_widget)
         self.entry_info_widget.setEntryInfo(entry)
 
@@ -281,3 +303,7 @@ class PaperWatchApp(QMainWindow):
         )
 
         self.showPapers(sorted_entries, True)
+
+    def back_to_main_view(self):
+        self.side_panel.setVisible(True)
+        self.stacked_widget.setCurrentWidget(self.scroll_area)
