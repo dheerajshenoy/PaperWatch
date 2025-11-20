@@ -6,6 +6,9 @@ keywords = ["CNN"]
 sort_by = "submittedDate"
 sort_order = "descending"
 
+[bookmark]
+file_path = "bookmarks.sqlite"
+
 [ui.side_panel]
 visible = true
 width = 300

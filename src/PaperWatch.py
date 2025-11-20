@@ -12,6 +12,7 @@ from typing import List, overload, Union
 from Config import AppConfig
 from SidePanel import SidePanel
 from DOI2Bib import DOI2Bib
+from BookmarkManager import BookmarkManager
 
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -52,6 +53,8 @@ class PaperWatchApp(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
         # Additional UI setup can be done here
 
+        self.bookmark_manager = BookmarkManager("bookmarks.json")
+
         self.initUI()
 
         # Fetch papers based on keywords, it should be title=keyword+OR+title=keyword
@@ -59,7 +62,9 @@ class PaperWatchApp(QMainWindow):
         # Start with keywords (default to title search)
         self.parameters = ""
         if self.config.arxiv.keywords:
-            self.parameters = "+AND+".join(f"ti:{k}" for k in self.config.arxiv.keywords)
+            self.parameters = "+AND+".join(
+                f"ti:{k}" for k in self.config.arxiv.keywords
+            )
 
         # Build subject filter
         if self.config.arxiv.subjects:
@@ -70,7 +75,6 @@ class PaperWatchApp(QMainWindow):
             else:
                 self.parameters = f"({subject_filter})"
         # else: no subjects specified → do nothing, search across all subjects
-
 
         self.method_name = "search_query"
 
@@ -130,6 +134,11 @@ class PaperWatchApp(QMainWindow):
         sort_by_author_action.setChecked(self.sort_by == self.SortBy.AUTHOR)
         sort_by_date_action.setChecked(self.sort_by == self.SortBy.DATE)
         sort_by_title_action.setChecked(self.sort_by == self.SortBy.TITLE)
+
+        self.view_menu.addAction(
+            "Manage Bookmarks",
+            lambda: self.showPapers(self.bookmark_manager.list_all(), True),
+        )
 
         self.sort_by_menu = self.view_menu.addMenu("Sort By")
 
@@ -208,13 +217,13 @@ class PaperWatchApp(QMainWindow):
         """
         Display fetched papers in the UI.
         """
-
         if remove_existing_entries:
             # Clear the children of scroll_layout
             for i in reversed(range(self.scroll_layout.count())):
-                widget_to_remove = self.scroll_layout.itemAt(i).widget()
-                self.scroll_layout.removeWidget(widget_to_remove)
-                widget_to_remove.setParent(None)
+                widget_to_remove = self.scroll_layout.takeAt(i).widget()
+                if widget_to_remove is not None:
+                    widget_to_remove.deleteLater()
+                    self.scroll_layout.removeWidget(widget_to_remove)
 
             self.numPapers = 0
 
@@ -225,8 +234,13 @@ class PaperWatchApp(QMainWindow):
 
         subjects = self.config.arxiv.subjects if self.config else []
 
+        # if the entry is already an Entry object, use it directly
         for feed in self.entries:
-            entry: Entry = Entry(feed)
+            if isinstance(feed, Entry):
+                entry: Entry = feed
+            else:
+                entry: Entry = Entry(feed)
+
             if self.config.arxiv.doi_only and entry.doi == "":
                 continue
 
@@ -235,7 +249,10 @@ class PaperWatchApp(QMainWindow):
 
             card = EntryCard(entry)
             card.entryClicked.connect(self.on_entry_clicked)
+            card.bookmarkEntryClicked.connect(self.bookmark_entry)
+            card.setBookmarked(self.bookmark_manager.is_bookmarked(entry))
             self.scroll_layout.addWidget(card)
+            card.repaint()
             self.numPapers += 1
 
         self.scroll_layout.addStretch()
@@ -250,8 +267,6 @@ class PaperWatchApp(QMainWindow):
         url_template = "http://export.arxiv.org/api/query?{method_name}={parameters}&start=0&max_results={max_results}&sortBy=submittedDate&sortOrder=descending"
 
         url = f"{url_template.format(method_name=method_name, parameters=parameters, max_results=max_results)}"
-
-        print(url)
 
         request = QNetworkRequest(QUrl(url))
         request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute, True)
@@ -316,3 +331,9 @@ class PaperWatchApp(QMainWindow):
     def back_to_main_view(self):
         self.side_panel.setVisible(True)
         self.stacked_widget.setCurrentWidget(self.scroll_area)
+
+    def bookmark_entry(self, entry: Entry):
+        if not self.bookmark_manager.is_bookmarked(entry):
+            self.bookmark_manager.add(entry)
+        else:
+            self.bookmark_manager.remove(entry.id)

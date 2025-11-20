@@ -7,10 +7,11 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QFrame,
 )
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QPalette
 from PyQt6.QtCore import QUrl, pyqtSignal, Qt
 from typing import Optional, List
 from Entry import Entry
+
 
 class Label(QLabel):
     """QLabel with text mouse copy support"""
@@ -47,13 +48,16 @@ class ActionText(Label):
 
 class EntryCard(QWidget):
     entryClicked = pyqtSignal(object)  # Signal emitted when the card is clicked
+    bookmarkEntryClicked = pyqtSignal(
+        object
+    )  # Signal emitted when bookmark button is clicked
 
     def __init__(self, entry: Entry):
         super().__init__()
 
         # Frame that will have the shadow
         shadow_frame = QFrame()
-                # border-radius: 10px;
+        # border-radius: 10px;
         shadow_frame.setStyleSheet("""
             .QFrame {
                 background-color: white;
@@ -112,8 +116,12 @@ class EntryCard(QWidget):
         )
         web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(link)))
 
+        self.bookmark_btn = QPushButton("Bookmark")
+        self.bookmark_btn.clicked.connect(self._on_bookmark_clicked)
+
         btn_row.addWidget(date_label)
         btn_row.addStretch()
+        btn_row.addWidget(self.bookmark_btn)
         btn_row.addWidget(pdf_btn)
         btn_row.addWidget(web_btn)
 
@@ -138,9 +146,43 @@ class EntryCard(QWidget):
     # def leaveEvent(self, event):
     #     self.setCursor(Qt.CursorShape.ArrowCursor)
 
+    def setBookmarked(self, bookmarked: bool):
+        self.bookmarked = bookmarked
+
+        palette = self.bookmark_btn.palette()
+
+        if bookmarked:
+            self.bookmark_btn.setText("Bookmarked")
+
+            # Use the system/theme highlight color
+            bg = palette.color(QPalette.ColorRole.Highlight).name()
+            text = palette.color(QPalette.ColorRole.HighlightedText).name()
+
+            self.bookmark_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {bg};
+                    color: {text};
+                }}
+            """)
+
+        else:
+            self.bookmark_btn.setText("Bookmark")
+            # Default style palette
+
+            bg = self.style().standardPalette().color(QPalette.ColorRole.Base).name()
+            text = self.style().standardPalette().color(QPalette.ColorRole.Text).name()
+
+            self.bookmark_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {bg};
+                    color: {text};
+                }}
+                """)
+
     def entry(self) -> Entry:
         return self.entry
 
-    # Handle click event and send signal called entryClicked
-    # def mousePressEvent(self, event):
-    #     self.entryClicked.emit(self.entry)
+    def _on_bookmark_clicked(self):
+        # Refresh the bookmark state
+        self.setBookmarked(not self.bookmarked)
+        self.bookmarkEntryClicked.emit(self.entry)
