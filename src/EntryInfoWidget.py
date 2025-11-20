@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal, Qt, QUrl
 from PyQt6.QtGui import QFont, QDesktopServices
 from Entry import Entry
+from LineEdit import LineEdit
 
 
 class EntryInfoWidget(QWidget):
@@ -50,9 +51,7 @@ class EntryInfoWidget(QWidget):
         self.doi_label.setFont(QFont("Arial", 10, QFont.Weight.Normal
                                      ))
         self.doi_layout.addWidget(self.doi_label)
-        self.doi_text_edit = QLineEdit()
-        # Make it so that the QLineEdit expands to size of the content
-        self.doi_text_edit.setMinimumWidth(400)
+        self.doi_text_edit = LineEdit()
 
         self.doi_widget.hide()
 
@@ -103,3 +102,4 @@ class EntryInfoWidget(QWidget):
         if entry.doi != "":
             self.doi_widget.show()
             self.doi_text_edit.setText(entry.doi)
+            self.doi_text_edit.resize_to_contents()
