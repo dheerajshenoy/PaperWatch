@@ -101,8 +101,8 @@ class ArxivConfig(BaseModel):
 
 class AppConfig(BaseModel):
     arxiv: ArxivConfig = ArxivConfig()
-    ui_card: CardUIConfig = CardUIConfig()
+    ui: UIConfig = UIConfig()
+
 
 def load_config(file_path: str) -> ArxivConfig:
-    config_data = toml.load(Path(file_path))
-    return AppConfig(**config_data)
+    return AppConfig(**tomllib.load(open(file_path, "rb")))
