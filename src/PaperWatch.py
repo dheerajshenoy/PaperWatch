@@ -9,6 +9,7 @@ from EntryInfoWidget import EntryInfoWidget
 from Entry import Entry
 import enum
 from typing import List, overload, Union
+from Config import AppConfig
 
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -21,11 +22,6 @@ from PyQt6.QtWidgets import (
 
 from Statusbar import Statusbar
 
-MAX_RESULTS_EACH = 30
-SUBJECTS = ["astro-ph.CO", "cs.CV", "cs.LG", "cs.ML"]
-SUBJECTS = []
-KEYWORDS = ["CMB"]
-
 
 class PaperWatchApp(QMainWindow):
     # Sort entries general function that sorts according to enum SortBy
@@ -34,12 +30,18 @@ class PaperWatchApp(QMainWindow):
         TITLE = 2
         AUTHOR = 3
 
-    def __init__(self):
+    def __init__(self, config: AppConfig = None):
         super().__init__()
 
-        self.sort_by: self.SortBy = self.SortBy.DATE
-        self.sort_order_ascending: bool = False
-        self.entries: feedparser.FeedParserDict = None  # Placeholder for paper entries
+        self.config = config
+        self.sort_by: self.SortBy = (
+            self.config.arxiv.sort_by if self.config else self.SortBy.DATE
+        )
+        self.sort_order_ascending: bool = (
+            self.config.arxiv.sort_order == "ascending" if self.config else False
+        )
+        self.entries: feedparser.FeedParserDict = None  # paper entries
+        self.parameters: str = ""
 
         self.setWindowTitle("PaperWatch")
         self.setGeometry(100, 100, 800, 600)
@@ -48,21 +50,34 @@ class PaperWatchApp(QMainWindow):
         self.initUI()
 
         # Fetch papers based on keywords, it should be title=keyword+OR+title=keyword
-        self.parameters = "+AND+".join(f"ti:{keyword}" for keyword in KEYWORDS)
 
-        self.manager = QNetworkAccessManager()
-        self.manager.finished.connect(self.on_page_response)
+        if self.config is not None:
+            if self.config.arxiv.keywords:
+                self.parameters = "+AND+".join(
+                    f"ti:{keyword}" for keyword in self.config.arxiv.keywords
+                )
 
-        # If you want to filter by subjects as well, uncomment the following lines
-        if SUBJECTS:
-            subject_filter = "+AND+".join(f"all:{subject}" for subject in SUBJECTS)
-            self.parameters += f"+AND+({subject_filter})"
+            if self.config.arxiv.subjects:
+                subject_filter = "+AND+".join(
+                    f"all:{subject}" for subject in self.config.arxiv.subjects
+                )
+
+                if self.parameters != "":
+                    self.parameters += f"+AND+({subject_filter})"
+
         self.method_name = "search_query"
-        self.fetch_papers_async(
-            self.method_name, self.parameters, max_results=MAX_RESULTS_EACH
-        )
 
-        self.sort_entries(self.SortBy.AUTHOR)
+        self._manager = QNetworkAccessManager()
+        self._manager.finished.connect(self.on_page_response)
+
+        if self.parameters != "":
+            self.fetch_papers_async(
+                self.method_name,
+                self.parameters,
+                max_results=self.config.arxiv.max_results,
+            )
+
+        self.sort_entries_by(self.SortBy.AUTHOR)
 
     def initUI(self):
         """Initialize the user interface."""
@@ -91,20 +106,42 @@ class PaperWatchApp(QMainWindow):
         sort_group.addAction(sort_by_author_action)
 
         sort_by_date_action.triggered.connect(
-            lambda: self.sort_entries(self.SortBy.DATE)
+            lambda: self.sort_entries_by(self.SortBy.DATE)
         )
         sort_by_title_action.triggered.connect(
-            lambda: self.sort_entries(self.SortBy.TITLE)
+            lambda: self.sort_entries_by(self.SortBy.TITLE)
         )
         sort_by_author_action.triggered.connect(
-            lambda: self.sort_entries(self.SortBy.AUTHOR)
+            lambda: self.sort_entries_by(self.SortBy.AUTHOR)
         )
 
         sort_by_author_action.setChecked(True)
 
-        self.view_menu.addAction(sort_by_date_action)
-        self.view_menu.addAction(sort_by_title_action)
-        self.view_menu.addAction(sort_by_author_action)
+        self.sort_by_menu = self.view_menu.addMenu("Sort By")
+
+        self.sort_by_menu.addAction(sort_by_date_action)
+        self.sort_by_menu.addAction(sort_by_title_action)
+        self.sort_by_menu.addAction(sort_by_author_action)
+
+        self.sort_order_menu = self.view_menu.addMenu("Sort Order")
+
+        sort_order_group = QActionGroup(self)
+        ascending_action = QAction("Ascending", self, checkable=True)
+        descending_action = QAction("Descending", self, checkable=True)
+
+        self.sort_order_menu.addAction(ascending_action)
+        self.sort_order_menu.addAction(descending_action)
+
+        sort_order_group.addAction(ascending_action)
+        sort_order_group.addAction(descending_action)
+
+        ascending_action.triggered.connect(
+            lambda: self.sort_entries_by(self.sort_by)
+        )
+
+        descending_action.triggered.connect(
+            lambda: self.sort_entries_by(self.sort_by)
+        )
 
         # Main layout
         self.layout = QVBoxLayout()
@@ -160,10 +197,12 @@ class PaperWatchApp(QMainWindow):
         elif isinstance(papers, feedparser.FeedParserDict):
             self.entries = papers.entries
 
+        subjects = self.config.arxiv.subjects if self.config else []
+
         for feed in self.entries:
             entry: Entry = Entry(feed)
 
-            if SUBJECTS != [] and entry.primary_category not in SUBJECTS:
+            if subjects != [] and entry.primary_category not in subjects:
                 continue  # Skip this entry
 
             card = EntryCard(entry)
@@ -171,7 +210,7 @@ class PaperWatchApp(QMainWindow):
             self.scroll_layout.addWidget(card)
 
     def fetch_papers_async(
-        self, method_name: str, parameters: str, max_results: int = MAX_RESULTS_EACH
+        self, method_name: str, parameters: str, max_results: int = 10
     ):
         """
         Fetch papers asynchronously from arXiv API.
@@ -183,7 +222,7 @@ class PaperWatchApp(QMainWindow):
 
         request = QNetworkRequest(QUrl(url))
         request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute, True)
-        self.manager.get(request)
+        self._manager.get(request)
 
     def on_page_response(self, reply: QNetworkReply):
         if reply.error() != QNetworkReply.NetworkError.NoError:
@@ -202,25 +241,28 @@ class PaperWatchApp(QMainWindow):
         self.stacked_widget.setCurrentWidget(self.entry_info_widget)
         self.entry_info_widget.setEntryInfo(entry)
 
-    # self.entries is an instance of Entry list
-    def sort_entries(self, sort_by: SortBy):
+    # Make this work with ascending/descending order
+    def sort_entries_by(self, sort_by: SortBy):
         if self.entries is None:
             return
 
         self.sort_by = sort_by
 
+        if self.sort_by == sort_by:
+            self.sort_order_ascending = not self.sort_order_ascending
+        else:
+            self.sort_order_ascending = False  # Default to descending on new sort
+
+        reverse = not self.sort_order_ascending
+
         if sort_by == self.SortBy.DATE:
-            sorted_entries = sorted(
-                self.entries, key=lambda e: e.published_parsed
-            )
+            sorted_entries = sorted(self.entries, key=lambda e: e.published_parsed, reverse=reverse)
+
         elif sort_by == self.SortBy.TITLE:
-            sorted_entries = sorted(
-                self.entries, key=lambda e: e.title.lower(), reverse=True
-            )
+            sorted_entries = sorted(self.entries, key=lambda e: e.title.lower(), reverse=reverse)
+
         elif sort_by == self.SortBy.AUTHOR:
-            sorted_entries = sorted(
-                self.entries, key=lambda e: e.authors[0]["name"].lower(), reverse=True
-            )
+            sorted_entries = sorted(self.entries, key=lambda e: e.authors[0]["name"].lower(), reverse=reverse)
         else:
             return
 
