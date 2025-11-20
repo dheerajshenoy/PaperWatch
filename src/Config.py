@@ -57,7 +57,20 @@ class CardUIConfig(BaseModel):
     style: CardStyleConfig = CardStyleConfig()
 
 
-# ------------------------------
+# SIDE PANEL CONFIG
+
+
+class SidePanelConfig(BaseModel):
+    visible: bool = True
+    width: PositiveInt = 300
+
+# UI CONFIG
+
+class UIConfig(BaseModel):
+    side_panel: SidePanelConfig = SidePanelConfig()
+    card: CardUIConfig = CardUIConfig()
+
+
 # TOP-LEVEL APP CONFIG
 # ------------------------------
 
