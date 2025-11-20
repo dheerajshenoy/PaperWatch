@@ -1,15 +1,11 @@
 # Use pydantic and toml to create a configuration class that loads settings from a TOML file.
 
 from pydantic import BaseModel, Field, PositiveInt
-import toml
+import tomllib
 from typing import Optional
 from pathlib import Path
 
-# Config for paperwatch application
-
-# ------------------------------
 # CARD APPEARANCE + CONTENT
-# ------------------------------
 
 
 class CardShowConfig(BaseModel):
@@ -50,9 +46,7 @@ class CardStyleConfig(BaseModel):
     text_dark: str = "#cccccc"
 
 
-# ------------------------------
 # TOP-LEVEL UI CARD MODEL
-# ------------------------------
 
 
 class CardUIConfig(BaseModel):
