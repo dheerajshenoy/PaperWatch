@@ -115,7 +115,15 @@ class PaperWatchApp(QMainWindow):
             lambda: self.sort_entries_by(self.SortBy.AUTHOR)
         )
 
-        sort_by_author_action.setChecked(True)
+        sort_by_author_action.setChecked(
+            self.sort_by == self.SortBy.AUTHOR
+        )
+        sort_by_date_action.setChecked(
+            self.sort_by == self.SortBy.DATE
+        )
+        sort_by_title_action.setChecked(
+            self.sort_by == self.SortBy.TITLE
+        )
 
         self.sort_by_menu = self.view_menu.addMenu("Sort By")
 
