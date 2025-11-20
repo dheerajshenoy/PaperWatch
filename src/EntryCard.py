@@ -51,6 +51,7 @@ class EntryCard(QWidget):
                 background-color: white;
                 border-radius: 10px;
                 border: 1px solid #ddd;
+                padding: 0;
             }
         """)
         self.entry = entry
@@ -109,6 +110,7 @@ class EntryCard(QWidget):
         shadow_layout.addLayout(tag_layout)
         shadow_layout.addWidget(authors_label)
         shadow_layout.addLayout(btn_row)
+        shadow_layout.addWidget(QLabel(entry.doi))
 
         # self.setLayout(shadow_layout)
 
