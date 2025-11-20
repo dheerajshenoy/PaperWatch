@@ -240,6 +240,8 @@ class PaperWatchApp(QMainWindow):
             card.entryClicked.connect(self.on_entry_clicked)
             self.scroll_layout.addWidget(card)
 
+        self.scroll_layout.addStretch()
+
     def fetch_papers_async(
         self, method_name: str, parameters: str, max_results: int = 10
     ):
