@@ -8,7 +8,7 @@ class Entry:
     def __init__(
         self,
         feed: feedparser.FeedParserDict,
-    ) -> None:
+    ):
         self._id: str = feed.get("id", "")
         self._title: str = feed.get("title", "")
         self._authors: str = ", ".join(
@@ -22,7 +22,7 @@ class Entry:
         self._primary_category: str = (
             feed.get("arxiv_primary_category", {}).get("term", "")
             if "arxiv_primary_category" in feed
-            else "No Category"
+            else ""
         )
 
         self._doi: str = feed.get("arxiv_doi", "")

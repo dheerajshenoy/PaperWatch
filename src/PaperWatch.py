@@ -135,10 +135,7 @@ class PaperWatchApp(QMainWindow):
         sort_by_date_action.setChecked(self.sort_by == self.SortBy.DATE)
         sort_by_title_action.setChecked(self.sort_by == self.SortBy.TITLE)
 
-        self.view_menu.addAction(
-            "Manage Bookmarks",
-            lambda: self.showPapers(self.bookmark_manager.list_all(), True),
-        )
+        self.view_menu.addAction("Manage Bookmarks", self.show_bookmarks)
 
         self.sort_by_menu = self.view_menu.addMenu("Sort By")
 
@@ -218,7 +215,8 @@ class PaperWatchApp(QMainWindow):
         Display fetched papers in the UI.
         """
         if remove_existing_entries:
-            # Clear the children of scroll_layout
+            # Clear the children of scroll_layout, except the stretch at the end
+
             for i in reversed(range(self.scroll_layout.count())):
                 widget_to_remove = self.scroll_layout.takeAt(i).widget()
                 if widget_to_remove is not None:
@@ -252,7 +250,6 @@ class PaperWatchApp(QMainWindow):
             card.bookmarkEntryClicked.connect(self.bookmark_entry)
             card.setBookmarked(self.bookmark_manager.is_bookmarked(entry))
             self.scroll_layout.addWidget(card)
-            card.repaint()
             self.numPapers += 1
 
         self.scroll_layout.addStretch()
@@ -337,3 +334,35 @@ class PaperWatchApp(QMainWindow):
             self.bookmark_manager.add(entry)
         else:
             self.bookmark_manager.remove(entry.id)
+
+    def show_bookmarks(self):
+        """
+        Display bookmarks in the UI.
+        """
+        bookmarks = self.bookmark_manager.list_all()
+
+        # Clear the children of scroll_layout, except the stretch at the end
+
+        for i in reversed(range(self.scroll_layout.count())):
+            widget_to_remove = self.scroll_layout.takeAt(i).widget()
+            if widget_to_remove is not None:
+                widget_to_remove.deleteLater()
+                self.scroll_layout.removeWidget(widget_to_remove)
+
+        self.numPapers = 0
+
+        # if the entry is already an Entry object, use it directly
+        for feed in bookmarks:
+            entry: Entry = feed
+
+            if self.config.arxiv.doi_only and entry.doi == "":
+                continue
+
+            card = EntryCard(entry)
+            card.entryClicked.connect(self.on_entry_clicked)
+            card.bookmarkEntryClicked.connect(self.bookmark_entry)
+            card.setBookmarked(self.bookmark_manager.is_bookmarked(entry))
+            self.scroll_layout.addWidget(card)
+            self.numPapers += 1
+
+        self.scroll_layout.addStretch()
