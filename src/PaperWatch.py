@@ -132,6 +132,9 @@ class PaperWatchApp(QMainWindow):
         self.sort_order_menu.addAction(ascending_action)
         self.sort_order_menu.addAction(descending_action)
 
+        ascending_action.setChecked(self.sort_order_ascending)
+        descending_action.setChecked(not self.sort_order_ascending)
+
         sort_order_group.addAction(ascending_action)
         sort_order_group.addAction(descending_action)
 
