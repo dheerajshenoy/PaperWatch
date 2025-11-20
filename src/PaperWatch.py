@@ -24,7 +24,7 @@ from Statusbar import Statusbar
 MAX_RESULTS_EACH = 30
 SUBJECTS = ["astro-ph.CO", "cs.CV", "cs.LG", "cs.ML"]
 SUBJECTS = []
-KEYWORDS = ["CNN", "Machine Learning"]
+KEYWORDS = ["CMB"]
 
 
 class PaperWatchApp(QMainWindow):

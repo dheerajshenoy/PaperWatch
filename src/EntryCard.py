@@ -27,7 +27,6 @@ class ActionText(QLabel):
     def enterEvent(self, event):
         font = self.font()
         font.setUnderline(True)
-        font.setColor(Qt.GlobalColor.blue)
         self.setFont(font)
 
     def leaveEvent(self, event):
@@ -55,7 +54,6 @@ class EntryCard(QWidget):
             }
         """)
         self.entry = entry
-        # shadow_frame.setStyleSheet("background-color: white; border-radius: 10px;")
         shadow_layout = QVBoxLayout(shadow_frame)
 
         layout = QVBoxLayout(self)
@@ -65,7 +63,13 @@ class EntryCard(QWidget):
         title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         title_label.clicked.connect(lambda: self.entryClicked.emit(self.entry))
 
-        authors_label = QLabel(entry.authors)
+        # Ellipsize long author lists
+
+        # authors_label = QLabel(entry.authors)
+        authors = entry.authors
+        if len(authors) > 100:
+            authors = authors[:100] + "..."
+        authors_label = QLabel(authors)
 
         tag_layout = QHBoxLayout()
 
@@ -76,18 +80,15 @@ class EntryCard(QWidget):
                 border-radius: 5px;
                 padding: 2px 5px;
                 font-size: 12px;
-                color: #333;
             """)
             tag_layout.addWidget(tag_label)
 
         tag_layout.addStretch()
 
-        authors_label.setStyleSheet(
-            "font-size: 13px; font-style: oblique; color: #555;"
-        )
+        authors_label.setStyleSheet("font-size: 13px; font-style: oblique;")
 
         date_label = QLabel(f"Published: {entry.published}")
-        date_label.setStyleSheet("font-size: 12px; color: #bbb;")
+        date_label.setStyleSheet("font-size: 12px")
 
         btn_row = QHBoxLayout()
         pdf_btn = QPushButton("PDF")
@@ -99,14 +100,14 @@ class EntryCard(QWidget):
         )
         web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(link)))
 
+        btn_row.addWidget(date_label)
+        btn_row.addStretch()
         btn_row.addWidget(pdf_btn)
         btn_row.addWidget(web_btn)
-        btn_row.addStretch()
 
         shadow_layout.addWidget(title_label)
         shadow_layout.addLayout(tag_layout)
         shadow_layout.addWidget(authors_label)
-        shadow_layout.addWidget(date_label)
         shadow_layout.addLayout(btn_row)
 
         # self.setLayout(shadow_layout)
