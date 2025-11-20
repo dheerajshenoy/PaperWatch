@@ -72,7 +72,6 @@ class UIConfig(BaseModel):
 
 
 # TOP-LEVEL APP CONFIG
-# ------------------------------
 
 
 class ArxivConfig(BaseModel):
@@ -96,6 +95,10 @@ class ArxivConfig(BaseModel):
 
     keywords: Optional[list[str]] = Field(
         None, description="List of keywords to search for in paper titles."
+    )
+
+    doi_only: bool = Field(
+        False, description="If true, only fetch papers that have a DOI."
     )
 
 

@@ -1,7 +1,8 @@
 [arxiv]
-max_results = 100
-subjects = ["cs.AI", "cs.LG"]
-keywords = ["machine learning", "artificial intelligence"]
+max_results = 50
+subjects = ["cs.CV", "cs.LG"]
+doi_only = false
+keywords = ["CNN"]
 sort_by = "submittedDate"
 sort_order = "descending"
 

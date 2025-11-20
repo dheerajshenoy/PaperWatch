@@ -12,8 +12,15 @@ from PyQt6.QtCore import QUrl, pyqtSignal, Qt
 from typing import Optional, List
 from Entry import Entry
 
+class Label(QLabel):
+    """QLabel with text mouse copy support"""
 
-class ActionText(QLabel):
+    def __init__(self, text: str, parent: Optional[QWidget] = None):
+        super().__init__(text, parent)
+        self.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+
+class ActionText(Label):
     """
     A QLabel that looks like a hyperlink and can be clicked to perform an action. User can define the action by connecting to the clicked signal.
     """
@@ -46,10 +53,10 @@ class EntryCard(QWidget):
 
         # Frame that will have the shadow
         shadow_frame = QFrame()
+                # border-radius: 10px;
         shadow_frame.setStyleSheet("""
             .QFrame {
                 background-color: white;
-                border-radius: 10px;
                 border: 1px solid #ddd;
                 padding: 0;
             }
@@ -57,6 +64,7 @@ class EntryCard(QWidget):
         self.entry = entry
         shadow_layout = QVBoxLayout(shadow_frame)
 
+        self.setContentsMargins(0, 0, 0, 0)
         layout = QVBoxLayout(self)
 
         title_label = ActionText(entry.title)
@@ -70,12 +78,12 @@ class EntryCard(QWidget):
         authors = entry.authors
         if len(authors) > 100:
             authors = authors[:100] + "..."
-        authors_label = QLabel(authors)
+        authors_label = Label(authors)
 
         tag_layout = QHBoxLayout()
 
         for category in entry.categories:
-            tag_label = QLabel(category)
+            tag_label = Label(category)
             tag_label.setStyleSheet("""
                 background-color: #eee;
                 border-radius: 5px;
@@ -88,8 +96,11 @@ class EntryCard(QWidget):
 
         authors_label.setStyleSheet("font-size: 13px; font-style: oblique;")
 
-        date_label = QLabel(f"Published: {entry.published}")
+        date_label = Label(f"Published: {entry.published}")
         date_label.setStyleSheet("font-size: 12px")
+
+        doi_label = Label(f"DOI: {entry.doi}")
+        doi_label.setStyleSheet("font-size: 12px")
 
         btn_row = QHBoxLayout()
         pdf_btn = QPushButton("PDF")
@@ -109,8 +120,8 @@ class EntryCard(QWidget):
         shadow_layout.addWidget(title_label)
         shadow_layout.addLayout(tag_layout)
         shadow_layout.addWidget(authors_label)
+        shadow_layout.addWidget(doi_label)
         shadow_layout.addLayout(btn_row)
-        shadow_layout.addWidget(QLabel(entry.doi))
 
         # self.setLayout(shadow_layout)
 

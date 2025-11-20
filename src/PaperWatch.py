@@ -3,7 +3,7 @@ import feedparser
 from PyQt6.QtNetwork import QNetworkReply, QNetworkRequest
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, QUrl, Qt
 from PyQt6.QtGui import QDesktopServices, QAction, QActionGroup
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
+from PyQt6.QtNetwork import QNetworkAccessManager
 from EntryCard import EntryCard
 from EntryInfoWidget import EntryInfoWidget
 from Entry import Entry
@@ -11,6 +11,7 @@ import enum
 from typing import List, overload, Union
 from Config import AppConfig
 from SidePanel import SidePanel
+from DOI2Bib import DOI2Bib
 
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -44,6 +45,7 @@ class PaperWatchApp(QMainWindow):
             self.config.arxiv.sort_order == "ascending" if self.config else False
         )
         self.entries: feedparser.FeedParserDict = None  # paper entries
+        self.numPapers: int = 0
         self.parameters: str = ""
 
         self.setWindowTitle("PaperWatch")
@@ -54,24 +56,26 @@ class PaperWatchApp(QMainWindow):
 
         # Fetch papers based on keywords, it should be title=keyword+OR+title=keyword
 
-        if self.config is not None:
-            if self.config.arxiv.keywords:
-                self.parameters = "+AND+".join(
-                    f"ti:{keyword}" for keyword in self.config.arxiv.keywords
-                )
+        # Start with keywords (default to title search)
+        self.parameters = ""
+        if self.config.arxiv.keywords:
+            self.parameters = "+AND+".join(f"ti:{k}" for k in self.config.arxiv.keywords)
 
-            if self.config.arxiv.subjects:
-                subject_filter = "+AND+".join(
-                    f"all:{subject}" for subject in self.config.arxiv.subjects
-                )
+        # Build subject filter
+        if self.config.arxiv.subjects:
+            # Join the selected subjects
+            subject_filter = "+OR+".join(self.config.arxiv.subjects)
+            if self.parameters:
+                self.parameters += f"+AND+({subject_filter})"
+            else:
+                self.parameters = f"({subject_filter})"
+        # else: no subjects specified → do nothing, search across all subjects
 
-                if self.parameters != "":
-                    self.parameters += f"+AND+({subject_filter})"
 
         self.method_name = "search_query"
 
-        self._manager = QNetworkAccessManager()
-        self._manager.finished.connect(self.on_page_response)
+        self._arxiv_fetch_network_manager = QNetworkAccessManager()
+        self._arxiv_fetch_network_manager.finished.connect(self.on_page_response)
 
         if self.parameters != "":
             self.fetch_papers_async(
@@ -79,7 +83,6 @@ class PaperWatchApp(QMainWindow):
                 self.parameters,
                 max_results=self.config.arxiv.max_results,
             )
-
 
     def initUI(self):
         """Initialize the user interface."""
@@ -213,6 +216,8 @@ class PaperWatchApp(QMainWindow):
                 self.scroll_layout.removeWidget(widget_to_remove)
                 widget_to_remove.setParent(None)
 
+            self.numPapers = 0
+
         if isinstance(papers, list):
             self.entries = papers
         elif isinstance(papers, feedparser.FeedParserDict):
@@ -222,14 +227,16 @@ class PaperWatchApp(QMainWindow):
 
         for feed in self.entries:
             entry: Entry = Entry(feed)
+            if self.config.arxiv.doi_only and entry.doi == "":
+                continue
 
             if subjects != [] and entry.primary_category not in subjects:
                 continue  # Skip this entry
 
             card = EntryCard(entry)
-            card.setContentsMargins(0, 0, 0, 0)
             card.entryClicked.connect(self.on_entry_clicked)
             self.scroll_layout.addWidget(card)
+            self.numPapers += 1
 
         self.scroll_layout.addStretch()
 
@@ -244,9 +251,11 @@ class PaperWatchApp(QMainWindow):
 
         url = f"{url_template.format(method_name=method_name, parameters=parameters, max_results=max_results)}"
 
+        print(url)
+
         request = QNetworkRequest(QUrl(url))
         request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute, True)
-        self._manager.get(request)
+        self._arxiv_fetch_network_manager.get(request)
 
     def on_page_response(self, reply: QNetworkReply):
         if reply.error() != QNetworkReply.NetworkError.NoError:
@@ -256,9 +265,8 @@ class PaperWatchApp(QMainWindow):
         data = reply.readAll().data()
         feed = feedparser.parse(data)
 
-        self.numPapers = len(feed.entries)
-        self.statusbar.set_papers_count(self.numPapers)
         self.showPapers(feed, remove_existing_entries=True)
+        self.statusbar.set_papers_count(self.numPapers)
         self.statusbar.set_message("Papers loaded successfully.", 3000)
 
     def on_entry_clicked(self, entry: Entry):

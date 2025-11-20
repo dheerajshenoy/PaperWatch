@@ -12,6 +12,7 @@ from PyQt6.QtCore import pyqtSignal, Qt, QUrl
 from PyQt6.QtGui import QFont, QDesktopServices
 from Entry import Entry
 from LineEdit import LineEdit
+from DOI2Bib import DOI2Bib
 
 
 class EntryInfoWidget(QWidget):
@@ -48,15 +49,21 @@ class EntryInfoWidget(QWidget):
         self.doi_widget.setLayout(self.doi_layout)
 
         self.doi_label = QLabel("DOI:")
-        self.doi_label.setFont(QFont("Arial", 10, QFont.Weight.Normal
-                                     ))
+        self.doi_label.setFont(QFont("Arial", 10, QFont.Weight.Normal))
         self.doi_layout.addWidget(self.doi_label)
         self.doi_text_edit = LineEdit()
+        self.doi2bib_button = QPushButton("DOI to BibTeX")
+        self.doi2bib_button.clicked.connect(lambda: self.doi_fetcher.fetch(
+            self.doi_text_edit.text()
+            ))
+
+        self.doi_fetcher = DOI2Bib()
 
         self.doi_widget.hide()
 
         self.doi_text_edit.setReadOnly(True)
         self.doi_layout.addWidget(self.doi_text_edit)
+        self.doi_layout.addWidget(self.doi2bib_button)
         self.doi_layout.addStretch()
 
         self.layout.addWidget(self.title_label)
