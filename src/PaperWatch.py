@@ -124,15 +124,9 @@ class PaperWatchApp(QMainWindow):
             lambda: self.sort_entries_by(self.SortBy.AUTHOR)
         )
 
-        sort_by_author_action.setChecked(
-            self.sort_by == self.SortBy.AUTHOR
-        )
-        sort_by_date_action.setChecked(
-            self.sort_by == self.SortBy.DATE
-        )
-        sort_by_title_action.setChecked(
-            self.sort_by == self.SortBy.TITLE
-        )
+        sort_by_author_action.setChecked(self.sort_by == self.SortBy.AUTHOR)
+        sort_by_date_action.setChecked(self.sort_by == self.SortBy.DATE)
+        sort_by_title_action.setChecked(self.sort_by == self.SortBy.TITLE)
 
         self.sort_by_menu = self.view_menu.addMenu("Sort By")
 
@@ -160,13 +154,9 @@ class PaperWatchApp(QMainWindow):
         sort_order_group.addAction(ascending_action)
         sort_order_group.addAction(descending_action)
 
-        ascending_action.triggered.connect(
-            lambda: self.sort_entries_by(self.sort_by)
-        )
+        ascending_action.triggered.connect(lambda: self.sort_entries_by(self.sort_by))
 
-        descending_action.triggered.connect(
-            lambda: self.sort_entries_by(self.sort_by)
-        )
+        descending_action.triggered.connect(lambda: self.sort_entries_by(self.sort_by))
 
         # Main layout
         self.layout = QVBoxLayout()
@@ -237,6 +227,7 @@ class PaperWatchApp(QMainWindow):
                 continue  # Skip this entry
 
             card = EntryCard(entry)
+            card.setContentsMargins(0, 0, 0, 0)
             card.entryClicked.connect(self.on_entry_clicked)
             self.scroll_layout.addWidget(card)
 
@@ -290,13 +281,21 @@ class PaperWatchApp(QMainWindow):
         reverse = not self.sort_order_ascending
 
         if sort_by == self.SortBy.DATE:
-            sorted_entries = sorted(self.entries, key=lambda e: e.published_parsed, reverse=reverse)
+            sorted_entries = sorted(
+                self.entries, key=lambda e: e.published_parsed, reverse=reverse
+            )
 
         elif sort_by == self.SortBy.TITLE:
-            sorted_entries = sorted(self.entries, key=lambda e: e.title.lower(), reverse=reverse)
+            sorted_entries = sorted(
+                self.entries, key=lambda e: e.title.lower(), reverse=reverse
+            )
 
         elif sort_by == self.SortBy.AUTHOR:
-            sorted_entries = sorted(self.entries, key=lambda e: e.authors[0]["name"].lower(), reverse=reverse)
+            sorted_entries = sorted(
+                self.entries,
+                key=lambda e: e.authors[0]["name"].lower(),
+                reverse=reverse,
+            )
         else:
             return
 
