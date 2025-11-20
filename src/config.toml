@@ -1,0 +1,14 @@
+[arxiv]
+max_results = 25
+subjects = ["cs.AI", "cs.LG"]
+keywords = ["machine learning", "artificial intelligence"]
+sort_by = "submittedDate"
+sort_order = "descending"
+
+[ui.card]
+show_authors = true
+show_date = true
+show_categories = true
+show_doi = true
+show_abstract = false
+show_comments = false
