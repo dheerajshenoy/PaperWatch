@@ -1,7 +1,7 @@
 import feedparser
 
 from PyQt6.QtNetwork import QNetworkReply, QNetworkRequest
-from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, QUrl, Qt
+from PyQt6.QtCore import QThread, QUrl, Qt, QStandardPaths, QCoreApplication
 from PyQt6.QtGui import QDesktopServices, QAction, QActionGroup
 from PyQt6.QtNetwork import QNetworkAccessManager
 from EntryCard import EntryCard
@@ -13,6 +13,7 @@ from Config import AppConfig
 from SidePanel import SidePanel
 from DOI2Bib import DOI2Bib
 from BookmarkManager import BookmarkManager
+from Config import load_config
 
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -26,6 +27,10 @@ from PyQt6.QtWidgets import (
 )
 
 from Statusbar import Statusbar
+from pathlib import Path
+
+APP_NAME = "PaperWatch"
+QCoreApplication.setApplicationName(APP_NAME)
 
 
 class PaperWatchApp(QMainWindow):
@@ -35,16 +40,35 @@ class PaperWatchApp(QMainWindow):
         TITLE = 2
         AUTHOR = 3
 
-    def __init__(self, config: AppConfig = None):
+    def __init__(self):
         super().__init__()
 
-        self.config = config
-        self.sort_by: self.SortBy = (
-            self.config.arxiv.sort_by if self.config else self.SortBy.DATE
+        self.config_dir = Path(
+            QStandardPaths.writableLocation(
+                QStandardPaths.StandardLocation.AppConfigLocation
+            )
         )
-        self.sort_order_ascending: bool = (
-            self.config.arxiv.sort_order == "ascending" if self.config else False
-        )
+
+        self.config: AppConfig = None
+        self.config_file = self.config_dir / "config.toml"
+
+        if not self.config_dir.exists():
+            self.config_dir.mkdir(parents=True, exist_ok=True)
+
+        if self.config_file.exists():
+            self.config = load_config(self.config_file)
+
+        if self.config:
+            self.sort_by: self.SortBy = self.config.arxiv.sort_by
+            self.sort_order_ascending: bool = (
+                self.config.arxiv.sort_order == "ascending"
+            )
+        else:
+            self.config = AppConfig()
+            self.sort_by = self.SortBy.DATE
+            self.sort_order_ascending = False  # Default to descending
+            self.config.arxiv.keywords = []
+
         self.entries: feedparser.FeedParserDict = None  # paper entries
         self.numPapers: int = 0
         self.parameters: str = ""
@@ -174,6 +198,8 @@ class PaperWatchApp(QMainWindow):
         self.setCentralWidget(self.main_widget)
         self.main_widget.setLayout(self.layout)
 
+        self.statusbar.setVisible(self.config.ui.statusbar.visible)
+
         self.scroll_area = QScrollArea()
         self.scroll_area.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
@@ -192,6 +218,7 @@ class PaperWatchApp(QMainWindow):
         self.entry_info_widget = EntryInfoWidget()
 
         self.entry_info_widget.backClicked.connect(self.back_to_main_view)
+        self.entry_info_widget.bookmarkClicked.connect(self.bookmark_entry)
 
         self.side_panel.setSizePolicy(
             QSizePolicy.Policy.Maximum,
@@ -284,7 +311,9 @@ class PaperWatchApp(QMainWindow):
     def on_entry_clicked(self, entry: Entry):
         self.side_panel.setVisible(False)
         self.stacked_widget.setCurrentWidget(self.entry_info_widget)
-        self.entry_info_widget.setEntryInfo(entry)
+        self.entry_info_widget.setEntryInfo(
+            entry, self.bookmark_manager.is_bookmarked(entry)
+        )
 
     # Make this work with ascending/descending order
     def sort_entries_by(self, sort_by: SortBy):
@@ -326,8 +355,16 @@ class PaperWatchApp(QMainWindow):
         self.showPapers(sorted_entries, True)
 
     def back_to_main_view(self):
-        self.side_panel.setVisible(True)
+        self.side_panel.setVisible(self.config.ui.side_panel.visible)
+        self.refresh_bookmark_status_in_entries()
         self.stacked_widget.setCurrentWidget(self.scroll_area)
+
+    def refresh_bookmark_status_in_entries(self):
+        """Refresh the bookmark status of the entry cards"""
+        for i in range(self.scroll_layout.count()):
+            widget = self.scroll_layout.itemAt(i).widget()
+            if isinstance(widget, EntryCard):
+                widget.setBookmarked(self.bookmark_manager.is_bookmarked(widget.entry))
 
     def bookmark_entry(self, entry: Entry):
         if not self.bookmark_manager.is_bookmarked(entry):
