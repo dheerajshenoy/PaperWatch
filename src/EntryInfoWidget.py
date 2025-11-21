@@ -9,14 +9,15 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QUrl
-from PyQt6.QtGui import QFont, QDesktopServices
+from PyQt6.QtGui import QFont, QDesktopServices, QPalette
 from Entry import Entry
 from LineEdit import LineEdit
 from DOI2Bib import DOI2Bib
-
+from Entry import Entry
 
 class EntryInfoWidget(QWidget):
     backClicked = pyqtSignal()
+    bookmarkClicked = pyqtSignal(Entry)
 
     def __init__(self):
         super().__init__()
@@ -52,10 +53,10 @@ class EntryInfoWidget(QWidget):
         self.doi_label.setFont(QFont("Arial", 10, QFont.Weight.Normal))
         self.doi_layout.addWidget(self.doi_label)
         self.doi_text_edit = LineEdit()
-        self.doi2bib_button = QPushButton("DOI to BibTeX")
-        self.doi2bib_button.clicked.connect(lambda: self.doi_fetcher.fetch(
-            self.doi_text_edit.text()
-            ))
+        self.doi2bib_btn = QPushButton("DOI to BibTeX")
+        self.doi2bib_btn.clicked.connect(
+            lambda: self.doi_fetcher.fetch(self.doi_text_edit.text())
+        )
 
         self.doi_fetcher = DOI2Bib()
 
@@ -63,7 +64,7 @@ class EntryInfoWidget(QWidget):
 
         self.doi_text_edit.setReadOnly(True)
         self.doi_layout.addWidget(self.doi_text_edit)
-        self.doi_layout.addWidget(self.doi2bib_button)
+        self.doi_layout.addWidget(self.doi2bib_btn)
         self.doi_layout.addStretch()
 
         self.layout.addWidget(self.title_label)
@@ -75,38 +76,76 @@ class EntryInfoWidget(QWidget):
 
         self.btn_layout = QHBoxLayout()
 
-        self.back_button = QPushButton("Back")
-        self.back_button.clicked.connect(self.on_back_clicked)
-        self.btn_layout.addWidget(self.back_button)
+        self.back_btn = QPushButton("Back")
+        self.back_btn.clicked.connect(self.on_back_clicked)
+        self.btn_layout.addWidget(self.back_btn)
 
         self.btn_layout.addStretch()
         # Add pdf button and website button
 
-        self.pdf_button = QPushButton("PDF")
-        self.pdf_button.clicked.connect(self.on_pdf_open_clicked)
-        self.btn_layout.addWidget(self.pdf_button)
+        self.bookmark_btn = QPushButton("Bookmark")
+        self.bookmark_btn.clicked.connect(self.on_bookmark_clicked)
+        self.btn_layout.addWidget(self.bookmark_btn)
 
-        self.website_button = QPushButton("Webpage")
-        self.website_button.clicked.connect(self.on_website_open_clicked)
-        self.btn_layout.addWidget(self.website_button)
+        self.pdf_btn = QPushButton("PDF")
+        self.pdf_btn.clicked.connect(self.on_pdf_open_clicked)
+        self.btn_layout.addWidget(self.pdf_btn)
+
+        self.website_btn = QPushButton("Webpage")
+        self.website_btn.clicked.connect(self.on_website_open_clicked)
+        self.btn_layout.addWidget(self.website_btn)
 
         self.layout.addLayout(self.btn_layout)
 
     def on_pdf_open_clicked(self):
-        QDesktopServices.openUrl(QUrl(self.link.replace("abs", "pdf")))
+        QDesktopServices.openUrl(QUrl(self.entry.link.replace("abs", "pdf")))
 
     def on_website_open_clicked(self):
-        QDesktopServices.openUrl(QUrl(self.link))
+        QDesktopServices.openUrl(QUrl(self.entry.link))
+
+    def on_bookmark_clicked(self):
+        self.setBookmarked(not self.bookmarked)
+        self.bookmarkClicked.emit(self.entry)
 
     def on_back_clicked(self):
         self.backClicked.emit()
 
-    def setEntryInfo(self, entry: Entry):
-        self.link = entry.link
+    def setEntryInfo(self, entry: Entry, bookmarked: bool = False):
+        self.entry = entry
         self.title_label.setText(entry.title)
         self.authors_label.setText(entry.authors)
         self.abstract_text.setText(entry.abstract)
-        if entry.doi != "":
-            self.doi_widget.show()
-            self.doi_text_edit.setText(entry.doi)
-            self.doi_text_edit.resize_to_contents()
+        self.setBookmarked(bookmarked)
+
+    def setBookmarked(self, bookmarked: bool):
+        self.bookmarked = bookmarked
+
+        palette = self.bookmark_btn.palette()
+
+        if bookmarked:
+            self.bookmark_btn.setText("Bookmarked")
+
+            # Use the system/theme highlight color
+            bg = palette.color(QPalette.ColorRole.Highlight).name()
+            text = palette.color(QPalette.ColorRole.HighlightedText).name()
+
+            self.bookmark_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {bg};
+                    color: {text};
+                }}
+            """)
+
+        else:
+            self.bookmark_btn.setText("Bookmark")
+            # Default style palette
+
+            bg = self.style().standardPalette().color(QPalette.ColorRole.Base).name()
+            text = self.style().standardPalette().color(QPalette.ColorRole.Text).name()
+
+            self.bookmark_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {bg};
+                    color: {text};
+                }}
+                """)
