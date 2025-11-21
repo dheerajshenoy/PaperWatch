@@ -64,11 +64,18 @@ class SidePanelConfig(BaseModel):
     visible: bool = True
     width: PositiveInt = 300
 
+# STATUSBAR CONFIG
+
+class StatusbarUIConfig(BaseModel):
+    visible: bool = True
+    show_total_count: bool = True
+
 # UI CONFIG
 
 class UIConfig(BaseModel):
     side_panel: SidePanelConfig = SidePanelConfig()
     card: CardUIConfig = CardUIConfig()
+    statusbar: StatusbarUIConfig = StatusbarUIConfig()
 
 
 # TOP-LEVEL APP CONFIG
