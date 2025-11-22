@@ -434,4 +434,20 @@ class PaperWatchApp(QMainWindow):
 
         # TODO: Bookmark show
 
-        self.scroll_layout.addStretch()
+    def show_config_editor(self):
+        self.editor = ConfigEditorWidget(self.config)
+        self.editor.show()
+
+    def _filter_entries(self, text: str):
+        """Filter entries based on search text."""
+        for i in range(1, self.scroll_layout.count() - 1):
+            widget = self.scroll_layout.itemAt(i).widget()
+            if isinstance(widget, EntryCard):
+                entry: Entry = widget.entry
+                if (
+                    text.lower() in entry.title.lower()
+                    or text.lower() in entry.authors.lower()
+                ):
+                    widget.setVisible(True)
+                else:
+                    widget.setVisible(False)
