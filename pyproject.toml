@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paperwatch"
+version = "0.1.0"
+description = "PaperWatch is an open-source tool designed to help researchers and academics keep track of the latest papers in their field of interest. It provides a simple interface to monitor new publications from various sources, allowing users to stay updated with minimal effort."
+authors = [
+    { name = "Dheeraj Vittal Shenoy" }
+]
+requires-python = ">=3.9"
+readme = "README.md"
+dependencies = [
+    "PyQt6",
+    "feedparser",
+    "pydantic>=2",
+]
+
+[project.urls]
+Repository = "https://github.com/dheerajshenoy/PaperWatch"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
