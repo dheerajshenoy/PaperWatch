@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QFrame,
 )
-from PyQt6.QtGui import QDesktopServices, QPalette
+from PyQt6.QtGui import QDesktopServices, QPalette, QColor
 from PyQt6.QtCore import QUrl, pyqtSignal, Qt
 from typing import Optional, List
 from Entry import Entry
@@ -60,116 +60,112 @@ class EntryCard(QWidget):
     def __init__(self, entry: Entry):
         super().__init__()
 
-        # Frame that will have the shadow
-        shadow_frame = QFrame()
-        shadow_frame.setStyleSheet(f"""
-            .QFrame {{
-                background-color: white;
-                border: 1px solid #ddd;
-                border-radius: {self.config.ui.card.border_radius}px;
-                padding: 0;
-            }}
-            """)
-
         self.entry = entry
-        shadow_layout = QVBoxLayout(shadow_frame)
 
-        self.setContentsMargins(0, 0, 0, 0)
-        layout = QVBoxLayout(self)
+        card_frame = QFrame(self)
+        palette = card_frame.palette()
+        border_color = palette.color(QPalette.ColorRole.Accent).name()
 
+        # padding: 10px;  /* space inside the border */
+        # border: 1px solid {border_color};
+        card_frame.setStyleSheet(f"""
+            QFrame {{
+                border-radius: {self.config.ui.card.border_radius}px;
+                background: palette(base); /* keeps theme correct */
+            }}
+        """)
+
+        #
+        # Outer layout (for this widget)
+        #
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.addWidget(card_frame)
+
+        #
+        # Layout inside the card border
+        #
+        layout = QVBoxLayout(card_frame)
+        layout.setSpacing(6)
+
+        #
+        # Title
+        #
         title_label = ActionText(entry.title)
         title_label.setWordWrap(True)
         title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
-        title_label.clicked.connect(lambda: self.entryClicked.emit(self.entry))
+        title_label.clicked.connect(lambda: self.entryClicked.emit(entry))
+        title_label.setVisible(self.config.ui.card.show_title)
+        layout.addWidget(title_label)
 
-        # Ellipsize long author lists
+        #
+        # Tags
+        #
+        if self.config.ui.card.show_tags:
+            tag_layout = QHBoxLayout()
+            tag_background = palette.color(QPalette.ColorRole.Mid).name()
+            for tag in entry.tags:
+                tag_lbl = Label(tag)
+                tag_lbl.setStyleSheet(f"""
+                    background-color: {tag_background};
+                    border-radius: 5px;
+                    padding: 2px 5px;
+                    font-size: 12px;
+                """)
+                tag_layout.addWidget(tag_lbl)
+            tag_layout.addStretch()
+            layout.addLayout(tag_layout)
 
-        # authors_label = QLabel(entry.authors)
+        #
+        # Authors
+        #
         authors = entry.authors.split(", ")
-        truncate_at = self.config.ui.card.authors_truncate
-        if len(authors) > truncate_at:
-            authors = authors[:truncate_at]
-            authors.append("et al.")
-        authors = ", ".join(authors)
-        authors_label = Label(authors)
-
-        tag_layout = QHBoxLayout()
-
-        for category in entry.categories:
-            tag_label = Label(category)
-            tag_label.setStyleSheet("""
-                background-color: #eee;
-                border-radius: 5px;
-                padding: 2px 5px;
-                font-size: 12px;
-            """)
-            tag_layout.addWidget(tag_label)
-
-        tag_layout.addStretch()
-
+        if len(authors) > self.config.ui.card.authors_truncate:
+            authors = authors[: self.config.ui.card.authors_truncate] + ["et al."]
+        authors_label = Label(", ".join(authors))
         authors_label.setStyleSheet("font-size: 13px; font-style: oblique;")
+        authors_label.setVisible(self.config.ui.card.show_authors)
+        layout.addWidget(authors_label)
+
+        #
+        # DOI
+        #
+        doi_label = Label(f"DOI: {entry.doi}")
+        doi_label.setStyleSheet("font-size: 12px")
+        doi_label.setVisible(self.config.ui.card.show_doi)
+        layout.addWidget(doi_label)
+
+        #
+        # Bottom row
+        #
+        row = QHBoxLayout()
 
         date_label = Label(f"Published: {entry.published}")
         date_label.setStyleSheet("font-size: 12px")
+        date_label.setVisible(self.config.ui.card.show_date)
+        row.addWidget(date_label)
 
-        doi_label = Label(f"DOI: {entry.doi}")
-        doi_label.setStyleSheet("font-size: 12px")
-
-        btn_row = QHBoxLayout()
-        pdf_btn = QPushButton("PDF")
-        web_btn = QPushButton("Arxiv Page")
-
-        link = entry.link
-        pdf_btn.clicked.connect(
-            lambda: QDesktopServices.openUrl(QUrl(link.replace("abs", "pdf")))
-        )
-        web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(link)))
-
-        self.bookmark_btn = QPushButton("Bookmark")
-        self.bookmark_btn.clicked.connect(self._on_bookmark_clicked)
-
-        if self.config.ui.card.show_date:
-            btn_row.addWidget(date_label)
-
-        btn_row.addStretch()
+        row.addStretch()
 
         if self.config.ui.card.show_bookmark_button:
-            btn_row.addWidget(self.bookmark_btn)
+            self.bookmark_btn = QPushButton("Bookmark")
+            self.bookmark_btn.clicked.connect(self._on_bookmark_clicked)
+            row.addWidget(self.bookmark_btn)
 
         if self.config.ui.card.show_pdf_button:
-            btn_row.addWidget(pdf_btn)
+            pdf_btn = QPushButton("PDF")
+            pdf_btn.clicked.connect(
+                lambda: QDesktopServices.openUrl(QUrl(entry.link.replace("abs", "pdf")))
+            )
+            row.addWidget(pdf_btn)
 
         if self.config.ui.card.show_webpage_button:
-            btn_row.addWidget(web_btn)
+            web_btn = QPushButton("Arxiv Page")
+            web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(entry.link)))
+            row.addWidget(web_btn)
 
-        shadow_layout.addWidget(title_label)
-
-        if self.config.ui.card.show_tags:
-            shadow_layout.addLayout(tag_layout)
-        shadow_layout.addWidget(authors_label)
-        shadow_layout.addWidget(doi_label)
-        shadow_layout.addLayout(btn_row)
-
-        # self.setLayout(shadow_layout)
-
-        layout.addWidget(shadow_frame)
-
-        # Show/hide elements based on config
-        title_label.setVisible(self.config.ui.card.show_title)
-        date_label.setVisible(self.config.ui.card.show_date)
-        authors_label.setVisible(self.config.ui.card.show_authors)
-        doi_label.setVisible(self.config.ui.card.show_doi)
-
-        # Apply shadow effect to frame only
-        # shadow_effect = QGraphicsDropShadowEffect()
-        # shadow_frame.setGraphicsEffect(shadow_effect)
-
-    # Mouse hover show pointer cursor
-    # def enterEvent(self, event):
-    #     self.setCursor(Qt.CursorShape.PointingHandCursor)
-    #
-    # def leaveEvent(self, event):
-    #     self.setCursor(Qt.CursorShape.ArrowCursor)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.addLayout(row)
 
     def setBookmarked(self, bookmarked: bool):
         self.bookmarked = bookmarked
