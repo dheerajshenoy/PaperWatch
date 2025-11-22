@@ -16,6 +16,7 @@ from BookmarkManager import BookmarkManager
 from Config import load_config
 
 from PyQt6.QtWidgets import (
+    QMessageBox,
     QMainWindow,
     QSizePolicy,
     QVBoxLayout,
@@ -24,13 +25,19 @@ from PyQt6.QtWidgets import (
     QFrame,
     QStackedWidget,
     QHBoxLayout,
+    QPushButton,
+    QLineEdit,
 )
+
+from ConfigEditorWidget import ConfigEditorWidget
 
 from Statusbar import Statusbar
 from pathlib import Path
 
 APP_NAME = "PaperWatch"
+APP_VERSION = "0.1.0"
 QCoreApplication.setApplicationName(APP_NAME)
+QCoreApplication.setApplicationVersion(APP_VERSION)
 
 
 class PaperWatchApp(QMainWindow):
@@ -57,6 +64,7 @@ class PaperWatchApp(QMainWindow):
 
         if self.config_file.exists():
             self.config = load_config(self.config_file)
+            self.config.file_path = self.config_file
 
         if self.config:
             self.sort_by: self.SortBy = self.config.arxiv.sort_by
@@ -122,9 +130,18 @@ class PaperWatchApp(QMainWindow):
         self.help_menu = self.menubar.addMenu("Help")
 
         EntryCard.set_config(self.config)
+
+        # self.edit_menu.addAction(
+        #     "Settings",
+        #     self.show_config_editor,
+        # )
+
         self.side_panel = SidePanel(self)
         self.side_panel.setVisible(self.config.ui.side_panel.visible)
         self.side_panel.setContentsMargins(0, 0, 0, 0)
+
+        for bookmark_name in self.bookmark_manager.list_all():
+            self.side_panel.add_page(f"{bookmark_name}")
 
         if self.config.ui.side_panel.width > 0:
             self.side_panel.setMinimumWidth(self.config.ui.side_panel.width)
@@ -160,7 +177,7 @@ class PaperWatchApp(QMainWindow):
         sort_by_date_action.setChecked(self.sort_by == self.SortBy.DATE)
         sort_by_title_action.setChecked(self.sort_by == self.SortBy.TITLE)
 
-        self.view_menu.addAction("Manage Bookmarks", self.show_bookmarks)
+        self.view_menu.addAction("Manage Bookmarks", self._show_bookmarks)
 
         self.sort_by_menu = self.view_menu.addMenu("Sort By")
 
@@ -215,6 +232,12 @@ class PaperWatchApp(QMainWindow):
         self.scroll_area_widget.setLayout(self.scroll_layout)
         self.scroll_area.setWidget(self.scroll_area_widget)
 
+        self.entry_search_bar = QLineEdit(placeholderText="Search entries...")
+        self.scroll_layout.addWidget(self.entry_search_bar)
+        self.entry_search_bar.textChanged.connect(
+            lambda text: self._filter_entries(text)
+        )
+
         self.stacked_widget = QStackedWidget()
         self.entry_info_widget = EntryInfoWidget()
 
@@ -225,6 +248,7 @@ class PaperWatchApp(QMainWindow):
             QSizePolicy.Policy.Maximum,
             self.side_panel.sizePolicy().verticalPolicy(),
         )
+
         self.horiz_layout = QHBoxLayout()
         self.layout.addLayout(self.horiz_layout)
         self.horiz_layout.addWidget(self.side_panel)
@@ -233,6 +257,20 @@ class PaperWatchApp(QMainWindow):
         self.stacked_widget.addWidget(self.entry_info_widget)
         self.layout.addWidget(self.statusbar)
         self.layout.setContentsMargins(0, 0, 0, 0)
+
+        self.bookmark_widget = QWidget()
+        self.bookmark_layout = QVBoxLayout()
+        self.bookmark_widget.setLayout(self.bookmark_layout)
+        self.stacked_widget.addWidget(self.bookmark_widget)
+
+        # Bookmark widget
+
+        search_bar = QLineEdit()
+        back_btn = QPushButton("Back")
+        back_btn.clicked.connect(self.back_to_main_view)
+        self.bookmark_layout.addWidget(search_bar)
+        self.bookmark_layout.addWidget(back_btn)
+        self.bookmark_layout.addStretch()
 
     def showPapers(
         self,
@@ -245,11 +283,7 @@ class PaperWatchApp(QMainWindow):
         if remove_existing_entries:
             # Clear the children of scroll_layout, except the stretch at the end
 
-            for i in reversed(range(self.scroll_layout.count())):
-                widget_to_remove = self.scroll_layout.takeAt(i).widget()
-                if widget_to_remove is not None:
-                    widget_to_remove.deleteLater()
-                    self.scroll_layout.removeWidget(widget_to_remove)
+            self._clear_scroll_layout()
 
             self.numPapers = 0
 
@@ -281,6 +315,7 @@ class PaperWatchApp(QMainWindow):
             self.numPapers += 1
 
         self.scroll_layout.addStretch()
+        self.scroll_layout.setSpacing(self.config.ui.card.spacing)
 
     def fetch_papers_async(
         self, method_name: str, parameters: str, max_results: int = 10
@@ -304,7 +339,14 @@ class PaperWatchApp(QMainWindow):
 
         data = reply.readAll().data()
         feed = feedparser.parse(data)
-
+        if len(feed.entries) == 0:
+            self.statusbar.clear_message()
+            QMessageBox.warning(
+                self,
+                "No Papers Found",
+                "No papers were found with the given keywords/subjects.",
+            )
+            return
         self.showPapers(feed, remove_existing_entries=True)
         self.statusbar.set_papers_count(self.numPapers)
         self.statusbar.set_message("Papers loaded successfully.", 3000)
@@ -356,13 +398,13 @@ class PaperWatchApp(QMainWindow):
         self.showPapers(sorted_entries, True)
 
     def back_to_main_view(self):
+        self.stacked_widget.setCurrentWidget(self.scroll_area)
         self.side_panel.setVisible(self.config.ui.side_panel.visible)
         self.refresh_bookmark_status_in_entries()
-        self.stacked_widget.setCurrentWidget(self.scroll_area)
 
     def refresh_bookmark_status_in_entries(self):
         """Refresh the bookmark status of the entry cards"""
-        for i in range(self.scroll_layout.count()):
+        for i in range(2, self.scroll_layout.count()):
             widget = self.scroll_layout.itemAt(i).widget()
             if isinstance(widget, EntryCard):
                 widget.setBookmarked(self.bookmark_manager.is_bookmarked(widget.entry))
@@ -373,34 +415,23 @@ class PaperWatchApp(QMainWindow):
         else:
             self.bookmark_manager.remove(entry.id)
 
-    def show_bookmarks(self):
-        """
-        Display bookmarks in the UI.
-        """
-        bookmarks = self.bookmark_manager.list_all()
-
-        # Clear the children of scroll_layout, except the stretch at the end
-
-        for i in reversed(range(self.scroll_layout.count())):
+    def _clear_scroll_layout(self):
+        """ """
+        for i in reversed(range(1, self.scroll_layout.count())):
             widget_to_remove = self.scroll_layout.takeAt(i).widget()
             if widget_to_remove is not None:
                 widget_to_remove.deleteLater()
                 self.scroll_layout.removeWidget(widget_to_remove)
 
-        self.numPapers = 0
+    def _show_bookmarks(self):
+        """
+        Display bookmarks in the UI.
+        """
 
-        # if the entry is already an Entry object, use it directly
-        for feed in bookmarks:
-            entry: Entry = feed
+        self.stacked_widget.setCurrentWidget(self.bookmark_widget)
 
-            if self.config.arxiv.doi_only and entry.doi == "":
-                continue
+        bookmarks = self.bookmark_manager.list_all()
 
-            card = EntryCard(entry)
-            card.entryClicked.connect(self.on_entry_clicked)
-            card.bookmarkEntryClicked.connect(self.bookmark_entry)
-            card.setBookmarked(self.bookmark_manager.is_bookmarked(entry))
-            self.scroll_layout.addWidget(card)
-            self.numPapers += 1
+        # TODO: Bookmark show
 
         self.scroll_layout.addStretch()
