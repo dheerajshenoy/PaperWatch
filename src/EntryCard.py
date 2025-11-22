@@ -51,20 +51,26 @@ class EntryCard(QWidget):
     bookmarkEntryClicked = pyqtSignal(
         object
     )  # Signal emitted when bookmark button is clicked
+    config = None  # Placeholder for config usage
+
+    @classmethod
+    def set_config(cls, config):
+        cls.config = config
 
     def __init__(self, entry: Entry):
         super().__init__()
 
         # Frame that will have the shadow
         shadow_frame = QFrame()
-        # border-radius: 10px;
-        shadow_frame.setStyleSheet("""
-            .QFrame {
+        shadow_frame.setStyleSheet(f"""
+            .QFrame {{
                 background-color: white;
                 border: 1px solid #ddd;
+                border-radius: {self.config.ui.card.border_radius}px;
                 padding: 0;
-            }
-        """)
+            }}
+            """)
+
         self.entry = entry
         shadow_layout = QVBoxLayout(shadow_frame)
 
@@ -79,9 +85,12 @@ class EntryCard(QWidget):
         # Ellipsize long author lists
 
         # authors_label = QLabel(entry.authors)
-        authors = entry.authors
-        if len(authors) > 100:
-            authors = authors[:100] + "..."
+        authors = entry.authors.split(", ")
+        truncate_at = self.config.ui.card.authors_truncate
+        if len(authors) > truncate_at:
+            authors = authors[:truncate_at]
+            authors.append("et al.")
+        authors = ", ".join(authors)
         authors_label = Label(authors)
 
         tag_layout = QHBoxLayout()
@@ -119,14 +128,24 @@ class EntryCard(QWidget):
         self.bookmark_btn = QPushButton("Bookmark")
         self.bookmark_btn.clicked.connect(self._on_bookmark_clicked)
 
-        btn_row.addWidget(date_label)
+        if self.config.ui.card.show_date:
+            btn_row.addWidget(date_label)
+
         btn_row.addStretch()
-        btn_row.addWidget(self.bookmark_btn)
-        btn_row.addWidget(pdf_btn)
-        btn_row.addWidget(web_btn)
+
+        if self.config.ui.card.show_bookmark_button:
+            btn_row.addWidget(self.bookmark_btn)
+
+        if self.config.ui.card.show_pdf_button:
+            btn_row.addWidget(pdf_btn)
+
+        if self.config.ui.card.show_webpage_button:
+            btn_row.addWidget(web_btn)
 
         shadow_layout.addWidget(title_label)
-        shadow_layout.addLayout(tag_layout)
+
+        if self.config.ui.card.show_tags:
+            shadow_layout.addLayout(tag_layout)
         shadow_layout.addWidget(authors_label)
         shadow_layout.addWidget(doi_label)
         shadow_layout.addLayout(btn_row)
@@ -134,6 +153,12 @@ class EntryCard(QWidget):
         # self.setLayout(shadow_layout)
 
         layout.addWidget(shadow_frame)
+
+        # Show/hide elements based on config
+        title_label.setVisible(self.config.ui.card.show_title)
+        date_label.setVisible(self.config.ui.card.show_date)
+        authors_label.setVisible(self.config.ui.card.show_authors)
+        doi_label.setVisible(self.config.ui.card.show_doi)
 
         # Apply shadow effect to frame only
         # shadow_effect = QGraphicsDropShadowEffect()
