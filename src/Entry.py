@@ -2,6 +2,18 @@
 
 import feedparser
 from typing import List
+import re
+from datetime import datetime
+
+def arxiv_to_doi(url: str) -> str:
+    """Convert an arXiv abstract URL to a DOI link."""
+    # match the identifier including version
+    m = re.search(r'arxiv\.org/abs/([0-9]{4}\.[0-9]+)(v[0-9]+)?', url)
+    if not m:
+        raise ValueError(f"URL does not look like an arXiv abs link: {url}")
+    arxiv_id = m.group(1)  # e.g., "2510.07692"
+    doi = f"https://doi.org/10.48550/arXiv.{arxiv_id}"
+    return doi
 
 
 class Entry:
@@ -14,21 +26,22 @@ class Entry:
         self._authors: str = ", ".join(
             author["name"] for author in feed.get("authors", [])
         )
-        self._published: str = feed.get("published", "")
+        self._published: str = str(datetime.strptime(feed.get("published", ""), "%Y-%m-%dT%H:%M:%SZ"))
         self._abstract: str = feed.get("summary", "")
         self._link: str = feed.get("link", "")
 
-        self._categories: List[str] = [tag["term"] for tag in feed.get("tags", [])]
+        self._tags: List[str] = [tag["term"] for tag in feed.get("tags", [])]
         self._primary_category: str = (
             feed.get("arxiv_primary_category", {}).get("term", "")
             if "arxiv_primary_category" in feed
             else ""
         )
 
-        self._doi: str = feed.get("arxiv_doi", "")
+        # Handle DOI
+        self._doi: str = feed.get("arxiv_doi", arxiv_to_doi(self._link))
 
     def __repr__(self) -> str:
-        return f"Entry(title={self.title}, authors={self.authors}, published={self.published}, link={self.link}, primary_category={self.primary_category})"
+        return f"Entry(title={self._title}, authors={self._authors}, published={self._published}, link={self._link}, primary_category={self._primary_category}, tags={self._tags})"
 
     # Getter only for all members as properties
 
@@ -41,8 +54,8 @@ class Entry:
         return self._doi
 
     @property
-    def categories(self) -> str:
-        return self._categories
+    def tags(self) -> str:
+        return self._tags
 
     @property
     def title(self) -> str:
@@ -79,7 +92,7 @@ class Entry:
             "published": self.published,
             "abstract": self.abstract,
             "link": self.link,
-            "categories": self.categories,
+            "tags": self.tags,
             "primary_category": self.primary_category,
             "doi": self.doi,
         }
@@ -104,7 +117,7 @@ class Entry:
             "published": data.get("published", ""),
             "summary": data.get("abstract", ""),
             "link": data.get("link", ""),
-            "tags": [{"term": c} for c in data.get("categories", [])],
+            "tags": [{"term": c} for c in data.get("tags", [])],
             "primary_category": {"term": data.get("primary_category", "")},
             "doi": data.get("doi", ""),
         }
