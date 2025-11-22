@@ -121,6 +121,7 @@ class PaperWatchApp(QMainWindow):
         self.view_menu = self.menubar.addMenu("View")
         self.help_menu = self.menubar.addMenu("Help")
 
+        EntryCard.set_config(self.config)
         self.side_panel = SidePanel(self)
         self.side_panel.setVisible(self.config.ui.side_panel.visible)
         self.side_panel.setContentsMargins(0, 0, 0, 0)
