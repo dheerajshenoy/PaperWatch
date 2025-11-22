@@ -3,58 +3,31 @@
 from pydantic import BaseModel, Field, PositiveInt
 import tomllib
 from typing import Optional
-from pathlib import Path
-
-# CARD APPEARANCE + CONTENT
 
 
-class CardShowConfig(BaseModel):
+class CardConfig(BaseModel):
+    show_title: bool = True
     show_authors: bool = True
+    authors_truncate: Optional[PositiveInt] = 5
     show_date: bool = True
-    show_categories: bool = True
+    show_tags: bool = True
     show_doi: bool = True
     show_abstract: bool = False
     show_comments: bool = False
+    show_bookmark_button: bool = True
+    show_pdf_button: bool = True
+    show_webpage_button: bool = True
 
+    font_title: PositiveInt = 18
+    font_authors: PositiveInt = 13
+    font_meta: PositiveInt = 12
 
-class CardFontConfig(BaseModel):
-    title: PositiveInt = 18
-    authors: PositiveInt = 13
-    meta: PositiveInt = 12
-
-
-class CardLayoutConfig(BaseModel):
     max_width: PositiveInt = 600
     wrap_title: bool = True
     wrap_authors: bool = True
 
-
-class CardButtonConfig(BaseModel):
-    pdf: bool = True
-    arxiv: bool = True
-    doi: bool = True
-
-
-class CardStyleConfig(BaseModel):
     shadow: bool = True
-    border_radius: PositiveInt = 10
-
-    background_light: str = "#ffffff"
-    background_dark: str = "#222222"
-
-    text_light: str = "#000000"
-    text_dark: str = "#cccccc"
-
-
-# TOP-LEVEL UI CARD MODEL
-
-
-class CardUIConfig(BaseModel):
-    show: CardShowConfig = CardShowConfig()
-    font: CardFontConfig = CardFontConfig()
-    layout: CardLayoutConfig = CardLayoutConfig()
-    buttons: CardButtonConfig = CardButtonConfig()
-    style: CardStyleConfig = CardStyleConfig()
+    border_radius: int = 0
 
 
 # SIDE PANEL CONFIG
@@ -64,18 +37,22 @@ class SidePanelConfig(BaseModel):
     visible: bool = True
     width: PositiveInt = 300
 
+
 # STATUSBAR CONFIG
 
-class StatusbarUIConfig(BaseModel):
+
+class StatusbarConfig(BaseModel):
     visible: bool = True
     show_total_count: bool = True
 
+
 # UI CONFIG
+
 
 class UIConfig(BaseModel):
     side_panel: SidePanelConfig = SidePanelConfig()
-    card: CardUIConfig = CardUIConfig()
-    statusbar: StatusbarUIConfig = StatusbarUIConfig()
+    card: CardConfig = CardConfig()
+    statusbar: StatusbarConfig = StatusbarConfig()
 
 
 # TOP-LEVEL APP CONFIG
