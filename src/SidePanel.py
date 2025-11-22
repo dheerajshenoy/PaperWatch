@@ -23,15 +23,6 @@ class SidePanel(QWidget):
         self.page_list = QListWidget()
         self.layout.addWidget(self.page_list)
 
-        # Rounded corners and no margins
-        self.setStyleSheet("""
-        QFrame {
-                background-color: white;
-                border: 1px solid #ddd;
-                padding: 0;
-                }
-        """)
-
         self.setContentsMargins(0, 0, 0, 0)
 
     def add_page(self, page_name):
