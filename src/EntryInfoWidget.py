@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QLabel,
-    QLineEdit,
+    QTextEdit,
     QPushButton,
     QHBoxLayout,
 )
@@ -13,7 +13,6 @@ from PyQt6.QtGui import QFont, QDesktopServices, QPalette
 from Entry import Entry
 from LineEdit import LineEdit
 from DOI2Bib import DOI2Bib
-from Entry import Entry
 
 class EntryInfoWidget(QWidget):
     backClicked = pyqtSignal()
@@ -38,12 +37,29 @@ class EntryInfoWidget(QWidget):
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
 
-        self.abstract_text = QLabel()
-        self.abstract_text.setWordWrap(True)
+        self.published_date_label = QLabel("Published Date")
+        self.published_date_label.setFont(QFont("Arial", 14, QFont.Weight.Normal))
+        self.published_date_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+        )
+
+        self.abstract_text = QTextEdit()
+        # self.abstract_text.setWordWrap(True)
+        self.abstract_text.setReadOnly(True)
         self.abstract_text.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
-        self.abstract_text.setFont(QFont("Arial", 11, QFont.Weight.Normal))
+        # Remove the ugly frame
+        self.abstract_text.setFrameStyle(0)
+
+        # Optional: subtle background and padding
+        self.abstract_text.setStyleSheet("""
+            QTextEdit {
+                border-radius: 6px;
+            }
+        """)
+
+
 
         self.doi_widget = QWidget()
         self.doi_layout = QHBoxLayout()
@@ -54,13 +70,14 @@ class EntryInfoWidget(QWidget):
         self.doi_layout.addWidget(self.doi_label)
         self.doi_text_edit = LineEdit()
         self.doi2bib_btn = QPushButton("DOI to BibTeX")
-        self.doi2bib_btn.clicked.connect(
-            lambda: self.doi_fetcher.fetch(self.doi_text_edit.text())
-        )
+        self.doi2bib_btn.clicked.connect(self._on_doi2bib_clicked)
+        self.doi_bibtex_text_edit = QTextEdit()
 
         self.doi_fetcher = DOI2Bib()
+        self.doi_fetcher.bibtex_fetched.connect(self._handle_bibtex_response)
 
         self.doi_widget.hide()
+        self.doi_bibtex_text_edit.hide()
 
         self.doi_text_edit.setReadOnly(True)
         self.doi_layout.addWidget(self.doi_text_edit)
@@ -69,8 +86,10 @@ class EntryInfoWidget(QWidget):
 
         self.layout.addWidget(self.title_label)
         self.layout.addWidget(self.authors_label)
+        self.layout.addWidget(self.published_date_label)
         self.layout.addWidget(self.abstract_text)
         self.layout.addWidget(self.doi_widget)
+        self.layout.addWidget(self.doi_bibtex_text_edit)
 
         self.layout.addStretch()
 
@@ -114,8 +133,17 @@ class EntryInfoWidget(QWidget):
         self.entry = entry
         self.title_label.setText(entry.title)
         self.authors_label.setText(entry.authors)
-        self.abstract_text.setText(entry.abstract)
+        self.abstract_text.setHtml(entry.abstract)
+        self.published_date_label.setText(entry.published)
+        self.abstract_text.adjustSize()
         self.setBookmarked(bookmarked)
+        self.doi_bibtex_text_edit.hide()
+        if entry.doi:
+            self.doi_widget.show()
+            self.doi_text_edit.setText(entry.doi)
+            self.doi_text_edit.resize_to_contents()
+        else:
+            self.doi_widget.hide()
 
     def setBookmarked(self, bookmarked: bool):
         self.bookmarked = bookmarked
@@ -149,3 +177,10 @@ class EntryInfoWidget(QWidget):
                     color: {text};
                 }}
                 """)
+
+    def _on_doi2bib_clicked(self):
+        self.doi_fetcher.fetch(self.entry.doi)
+
+    def _handle_bibtex_response(self, bibtex):
+        self.doi_bibtex_text_edit.setText(bibtex)
+        self.doi_bibtex_text_edit.show()
