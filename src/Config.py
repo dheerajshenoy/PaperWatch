@@ -6,6 +6,7 @@ from typing import Optional
 
 
 class CardConfig(BaseModel):
+    spacing: PositiveInt = 15
     show_title: bool = True
     show_authors: bool = True
     authors_truncate: Optional[PositiveInt] = 5
@@ -87,6 +88,7 @@ class ArxivConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
+    file_path: Optional[str] = None
     arxiv: ArxivConfig = ArxivConfig()
     ui: UIConfig = UIConfig()
 
